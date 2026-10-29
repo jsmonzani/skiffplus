@@ -401,6 +401,98 @@ static void draw_column_tall(uint32_t c, const char *label, const char *val, con
     cv_blit((uint32_t)CARD_X(c), Y_LABEL);
 }
 
+#define LG_BIG_LINES_Y 43
+#define ROW_W      240                                  /* the screen's full width */
+#define ROW_LAB_W  (ROW_W * 50 / 100)                   /* the label's cell: 120 */
+#define ROW_VAL_W  (ROW_W * 40 / 100)                   /* the value's cell: 96 */
+#define ROW_UNI_W  (ROW_W - ROW_LAB_W - ROW_VAL_W)      /* the unit's cell: 24 */
+#define ROW_VAL_X  ROW_LAB_W
+#define ROW_UNI_X  (ROW_LAB_W + ROW_VAL_W)
+#define ROW_GH     3                                    /* the gauge's height */
+#define ROW_GY     (LG_BIG_LINES_Y - ROW_GH - 1)             /* the gauge's top: rows 38..40 of 42 */
+#define ROW_BODY_H (ROW_GY - 1)                         /* rows 0..36: the text is centred in them */
+#define ROW_PAD    5                                    /* the margin kept at each side of a cell (as the gauge's) */
+#ifndef ROW_Y
+#define ROW_Y(c)   ((uint32_t)(Y_LABEL + (int32_t)(c) * LG_BIG_LINES_Y))   /* line c's top on the screen: adapt */
+#endif
+
+#define ROW_LEFT   0                                    /* the text's ink starts at the cell's left margin */
+#define ROW_RIGHT  1                                    /* the text's ink ends at the cell's right margin */
+
+
+/* s in face L inside the cell x0 .. x0 + w: its ink against the left or the right margin (al), centred up and down
+ * by the capitals. Wider than the cell less its margins: ellipsised, filling the cell (never a smaller face) */
+static void row_text_l(int32_t x0, int32_t w, const char *s, uint16_t fg, uint16_t bg, int al)
+{
+    int32_t y = CAP_IN(V, ROW_BODY_H), b[4], maxw = w - 2 * ROW_PAD;
+    text_ink(&AF_V, s, b);
+    if (b[2] - b[0] > maxw) {
+        GFX_HOOK_ALIGN(x0, 0, x0 + w, ROW_BODY_H, AL_V, "row text (cut)");
+        cv_text_fit(x0 + ROW_PAD, y, &AF_V, s, fg, bg, maxw);
+    } else if (al == ROW_RIGHT) {
+        GFX_HOOK_ALIGN(x0, 0, x0 + w - ROW_PAD, ROW_BODY_H, AL_V | AL_R, "row text right");
+        cv_text_on(x0 + w - ROW_PAD - b[2], y, &AF_V, s, fg, bg);
+    } else {
+        GFX_HOOK_ALIGN(x0, 0, x0 + w, ROW_BODY_H, AL_V, "row text left");
+        cv_text_on(x0 + ROW_PAD - b[0], y, &AF_V, s, fg, bg);
+    }
+}
+
+static void draw_big_lines(uint32_t c, const char *label, const char *val, const char *unit, uint16_t vc, int32_t ratio,
+                             uint32_t icon, int hot, int mot, int32_t kid, const card_span_t *sp)
+{
+    uint16_t lc = hot ? T_ACCENT : mot ? T_THEME : T_MID;
+    (void)icon;                                         /* (the icon was already disabled) */
+    (void)sp;                                           /* (no span face: the value always stays in L) */
+    cv_begin(ROW_W, LG_BIG_LINES_Y, T_BG);
+
+    /* 1. the label, in L, left-aligned in its cell (50 %) */
+    if (label[0]) {
+        if (hot && T_ACCENT == T_MID) {                 /* MONO: the label inverted, the chip 2 px round its ink */
+            int32_t lw = ink_w(&AF_L, label), cy = CAP_IN(L, ROW_BODY_H) + AF_L_CAP_Y, chh = AF_L_CAP_H;
+            int32_t cw = lw > ROW_LAB_W - 2 * ROW_PAD ? ROW_LAB_W - 2 * ROW_PAD : lw;
+            int32_t x0 = ROW_PAD - 2, y0 = cy - 2 < 0 ? 0 : cy - 2;
+            cv_rrect(x0, y0, cw + 4, chh + 4, 3, T_ACCENT, T_SURF);
+            GFX_HOOK_ALIGN(x0, y0, x0 + cw + 4, y0 + chh + 4, AL_HV, "row label chip (MONO hot)");
+            row_text_l(0, ROW_LAB_W, label, T_INK, T_ACCENT, ROW_LEFT);
+        } else {
+            row_text_l(0, ROW_LAB_W, label, lc, T_BG, ROW_LEFT);
+        }
+    }
+
+    /* 2. the value (or the keycap), in L, right-aligned in its cell (40 %) */
+    if (kid >= 0) {                                     /* "[OCT+]": the keycap, against the right margin */
+        int32_t kx = ROW_VAL_X + ROW_VAL_W - ROW_PAD - (int32_t)kc_w((uint32_t)kid);
+        GFX_HOOK_ALIGN(ROW_VAL_X, 0, ROW_VAL_X + ROW_VAL_W - ROW_PAD, ROW_BODY_H, AL_V | AL_R, "row keycap right");
+        cv_keycap(kx, HALF_UP(ROW_BODY_H - KC_H), (uint32_t)kid,
+                  vc == T_ACCENT || vc == T_DIM ? vc : T_KEY, T_INK, T_SURF);
+    } else if (val[0]) {
+        LARGE_HOOK(val, large_face_has(val) ? 0 : 1);   /* (1: a glyph not in L: add it to L_CHARS) */
+        row_text_l(ROW_VAL_X, ROW_VAL_W, val, vc, T_BG, ROW_RIGHT);
+    }
+
+    /* 3. the unit (S), centred in its cell (10 %) */
+    if (unit[0]) {
+        int32_t uy = CAP_IN(S, ROW_BODY_H);
+        if (ink_w(&AF_S, unit) > ROW_UNI_W) {           /* (24 px: a long unit is ellipsised) */
+            cv_text_fit(ROW_UNI_X, uy, &AF_S, unit, T_MID, T_SURF, ROW_UNI_W);
+        } else {
+            GFX_HOOK_ALIGN(ROW_UNI_X, 0, ROW_UNI_X + ROW_UNI_W, ROW_BODY_H, AL_HV, "row unit centred");
+            cv_text_in(ROW_UNI_X, uy, ROW_UNI_W, &AF_S, unit, T_MID, T_BG);
+        }
+    }
+
+    /* the gauge, along the bottom of the line, over its full width */
+    if (ratio >= 0) {
+        int32_t gw = ROW_W - 2 * ROW_PAD, fx = ratio * gw / 1000;
+        cv_rrect(ROW_PAD, ROW_GY, gw, ROW_GH, 1, T_BG, T_SURF);   /* (ux.style / T_LINE ignored) */
+        cv_rrect(ROW_PAD, ROW_GY, fx < ROW_GH ? ROW_GH : fx, ROW_GH, 1,
+                 hot ? T_ACCENT : vc == T_DIM ? T_DIM : T_THEME, T_BG);
+    }
+    cv_blit(0, ROW_Y(c));
+}
+
+
 /* one card = one knob: [icon] LABEL / value unit / gauge on a SURF card, redrawn only when it changed.
  * The value is M, or S when M is too wide (engine names, long ENUMs); the unit S after it. The gauge is
  * a 3 px rounded bar: BG track, THEME fill. The knob just turned (hot): icon, label, value and gauge in
@@ -479,7 +571,8 @@ static void draw_column(uint32_t c, const char *label, const char *val, const ch
             ui.roll[c].from[0] = 0;
         str_cpy(ui.col[c], key, sizeof ui.col[c]);
         if (kind == LK_TALL) {
-            draw_column_tall(c, label, val, unit, vc, ratio, icon, hot, mot, kid, &sp);
+            // draw_column_tall(c, label, val, unit, vc, ratio, icon, hot, mot, kid, &sp); 
+            draw_big_lines(c, label, val, unit, vc, ratio, icon, hot, mot, kid, &sp); // JSM
             return;
         }
         if (blocks) {

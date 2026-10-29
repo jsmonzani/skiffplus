@@ -2509,6 +2509,8 @@ static void draw_graph(void)
     if (!ui.force && sig == ui.graph_sig)
         return;
     ui.graph_sig = sig;
+    if (strip_kind() != SK_NONE)                    /* JSM MENU > LARGE: no graph for titles/lfo/adsr */
+        return;    
     cv_begin(240, graph_h(), T_BG);
     if (ux.crypt) {                                  /* (Skiff C3) CRYPT: stone in a double frame */
         cr_stone(3, 0, 234, (int32_t)graph_h(), T_SURF);
