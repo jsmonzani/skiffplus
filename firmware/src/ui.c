@@ -535,7 +535,12 @@ static uint32_t large_kind(void)
     if (ui.layer)
         return LK_LABEL;
     if (ui.home)
+#ifndef JSM_BACK_TO_NORMAL
+        /* JSM : I don't want the large view on home */
+        return LK_OFF;
+#else
         return LK_TALL;
+#endif    
     g = cur_page()->graph;
     return g == GR_BROWSE || g == GR_SLOTS || g == GR_USER || g == GR_BANK || step_page(g) ||
            g == GR_FEEL || g == GR_SLICES || g == GR_EVENTS || g == GR_SONG || sheet_of(g) ? LK_LABEL : LK_TALL;

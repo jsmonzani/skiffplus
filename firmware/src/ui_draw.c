@@ -401,7 +401,9 @@ static void draw_column_tall(uint32_t c, const char *label, const char *val, con
     cv_blit((uint32_t)CARD_X(c), Y_LABEL);
 }
 
-#define LG_BIG_LINES_Y 43
+#ifndef JSM_BACK_TO_NORMAL
+
+#define LG_BIG_LINES_Y 46
 #define ROW_W      240                                  /* the screen's full width */
 #define ROW_LAB_W  (ROW_W * 50 / 100)                   /* the label's cell: 120 */
 #define ROW_VAL_W  (ROW_W * 40 / 100)                   /* the value's cell: 96 */
@@ -491,7 +493,7 @@ static void draw_big_lines(uint32_t c, const char *label, const char *val, const
     }
     cv_blit(0, ROW_Y(c));
 }
-
+#endif
 
 /* one card = one knob: [icon] LABEL / value unit / gauge on a SURF card, redrawn only when it changed.
  * The value is M, or S when M is too wide (engine names, long ENUMs); the unit S after it. The gauge is
@@ -571,8 +573,11 @@ static void draw_column(uint32_t c, const char *label, const char *val, const ch
             ui.roll[c].from[0] = 0;
         str_cpy(ui.col[c], key, sizeof ui.col[c]);
         if (kind == LK_TALL) {
-            // draw_column_tall(c, label, val, unit, vc, ratio, icon, hot, mot, kid, &sp); 
+#ifndef JSM_BACK_TO_NORMAL
             draw_big_lines(c, label, val, unit, vc, ratio, icon, hot, mot, kid, &sp); // JSM
+#else
+            draw_column_tall(c, label, val, unit, vc, ratio, icon, hot, mot, kid, &sp); 
+#endif
             return;
         }
         if (blocks) {
@@ -694,7 +699,11 @@ static int32_t foot_hint_r(const char *ti)
 }
 /* (#22) HOME shows its lanes, which name every track's sound (ui_home.c); MENU > LARGE's tall cards and the scope (HOME
  * tapped on HOME) have none, so there the footer names the sound instead of HOLD [HOME] SHIFT (both force a redraw) */
+#ifndef JSM_BACK_TO_NORMAL
+static int home_lanes(void) { return ui.home && !ui.home_scope/* && large_kind() != LK_TALL*/; } // JSM show small lanes on home even in large
+#else
 static int home_lanes(void) { return ui.home && !ui.home_scope && large_kind() != LK_TALL; }
+#endif
 /* (2.0, D 2A) what comes back, how (ret: 1 + RETURN) and OCT+ KEEP, side by side from the left (design/mockups/
  * v2_mutes.png): MOMENTARY's footer, FX's with its macros out, PERFORM's with a throw out (ui_layer.c draw_layer) */
 static void ret_hints(uint32_t ret, int32_t y)
