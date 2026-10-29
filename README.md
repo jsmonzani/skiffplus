@@ -4,7 +4,9 @@
     <img src="docs/logo/skiff-logo-light.svg" alt="Skiff" width="560">
   </picture>
 </p>
-
+<p>
+Skiff with visual improvements on large view for people with bad vision.
+</p>
 <p align="center"><b>A six-track groovebox firmware for the M-VAVE FM-1 and SMK-37 Pro</b><br>
 synths and drums, patterns and songs, live performance, and a screen that shows what every control does</p>
 
