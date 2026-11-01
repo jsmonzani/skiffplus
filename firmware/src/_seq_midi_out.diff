@@ -1,0 +1,175 @@
+--- seq.c	2026-10-31 20:41:20.998499204 +0000
++++ seq.c	2026-11-01 09:48:35.035138451 +0000
+@@ -162,6 +162,57 @@
+ 
+ #include "chord.c"
+ 
++#ifndef JSM_BACK_TO_NORMAL
++/* JSM ---- MIDI OUT of what the sequencer and the arp play, on the track's channel (trk_midi_ch) ----
++ * The keys already go out in key_on / key_off; MIDI IN is not echoed. These two wrap trk_note_on / trk_note_off for the
++ * arp and the sequencer only (not input_on / input_off: the keys would go out twice). mo_on remembers, per track, which
++ * notes were sent on, so a note-off goes out only for a note-on that did, and seq_midi_panic can end them all.
++ * In the pool as seq_k (further down): a new .bss global would move the others.
++ * Build with -DJSM_BACK_TO_NORMAL to get the original code back. */
++static uint32_t mo_on[NTRK][4] __attribute__((section(".pool")));      // JSM 128 bits per track
++
++static void seq_midi_off(track_t *t, uint32_t note)                    // JSM
++{
++    uint32_t i = trk_index(t);
++    note &= 127u;
++    if (!((mo_on[i][note >> 5] >> (note & 31u)) & 1u))
++        return;
++    mo_on[i][note >> 5] &= ~(1u << (note & 31u));
++    midi_out_event(0x08u | (0x80u | trk_midi_ch(i)) << 8 | note << 16);
++}
++
++static void seq_midi_on(track_t *t, uint32_t note, uint32_t vel)       // JSM
++{
++    uint32_t i = trk_index(t);
++    if (t->p[P_MUTE])                                  /* a muted track sounds nothing: nor does it send */
++        return;
++    note &= 127u;
++    vel = vel ? (vel > 127u ? 127u : vel) : 1u;        /* velocity 0 would be a note-off */
++    seq_midi_off(t, note);                             /* the same note again: ended, then started */
++    mo_on[i][note >> 5] |= 1u << (note & 31u);
++    midi_out_event(0x09u | (0x90u | trk_midi_ch(i)) << 8 | note << 16 | vel << 24);
++}
++
++static void seq_midi_panic(track_t *t)                                 // JSM every note sent on ends (trk_all_off)
++{
++    uint32_t n;
++    for (n = 0; n < 128u; n++)
++        seq_midi_off(t, n);
++}
++
++static void seq_note_on(track_t *t, uint32_t note, uint32_t vel)       // JSM
++{
++    seq_midi_on(t, note, vel);
++    trk_note_on(t, note, vel);
++}
++
++static void seq_note_off(track_t *t, uint32_t note)                    // JSM
++{
++    seq_midi_off(t, note);
++    trk_note_off(t, note);
++}
++
++#endif /* JSM_BACK_TO_NORMAL */
+ /* ------------------------------------------------------------- arp --- */
+ static void arp_add(track_t *t, uint32_t note)
+ {
+@@ -325,7 +376,11 @@
+                 rec_release(t, t->arp_ch[i]);
+             else
+                 take_note(t, t->arp_ch[i], 0);       /* (Skiff: TAKES) */
++#ifndef JSM_BACK_TO_NORMAL
++            seq_note_off(t, t->arp_ch[i]);  // JSM
++#else
+             trk_note_off(t, t->arp_ch[i]);
++#endif
+             t->arp_ch[i] = 0;
+         }
+ }
+@@ -347,7 +402,11 @@
+             rec_note(t, nt, 100);
+         else
+             take_note(t, nt, 100);                  /* (Skiff: TAKES) */
++#ifndef JSM_BACK_TO_NORMAL
++        seq_note_on(t, nt, 100);  // JSM
++#else
+         trk_note_on(t, nt, 100);
++#endif
+     }
+ }
+ 
+@@ -355,7 +414,11 @@
+ {
+     if (t->arp_ch[0] | t->arp_ch[1] | t->arp_ch[2])
+         arp_chord_off(t, 0);
++#ifndef JSM_BACK_TO_NORMAL
++    seq_note_off(t, t->arp_note);  // JSM
++#else
+     trk_note_off(t, t->arp_note);
++#endif
+     t->arp_note = 0;
+ }
+ 
+@@ -363,7 +426,11 @@
+ {
+     if (t->arp_ch[0] | t->arp_ch[1] | t->arp_ch[2])
+         arp_chord_off(t, rec_on(t));
++#ifndef JSM_BACK_TO_NORMAL
++    seq_note_off(t, t->arp_note);  // JSM
++#else
+     trk_note_off(t, t->arp_note);
++#endif
+     if (rec_on(t))
+         rec_release(t, t->arp_note);
+     else
+@@ -508,7 +575,11 @@
+             rec_note(t, t->arp_note, 100);           /* recording: what the arp plays */
+         else
+             take_note(t, t->arp_note, 100);         /* (Skiff: TAKES, the same) */
++#ifndef JSM_BACK_TO_NORMAL
++        seq_note_on(t, t->arp_note, 100);  // JSM
++#else
+         trk_note_on(t, t->arp_note, 100);
++#endif
+     }
+ }
+ 
+@@ -1121,7 +1192,11 @@
+ {
+     uint32_t i, k = trk_index(t);
+     for (i = 0; i < t->seq_n; i++)
++#ifndef JSM_BACK_TO_NORMAL
++        seq_note_off(t, t->seq_notes[i]);  // JSM
++#else
+         trk_note_off(t, t->seq_notes[i]);
++#endif
+     t->seq_n = 0;
+     t->seq_hold = 0;
+     t->slide_glide = 0;                             /* live MONO / LEG keys must not glide after it */
+@@ -1134,7 +1209,11 @@
+     uint32_t k = trk_index(t), i, n = 0, km = 0, tm = 0;
+     for (i = 0; i < t->seq_n; i++) {
+         if (!((keep >> i) & 1u)) {
++#ifndef JSM_BACK_TO_NORMAL
++            seq_note_off(t, t->seq_notes[i]);  // JSM
++#else
+             trk_note_off(t, t->seq_notes[i]);
++#endif
+             continue;
+         }
+         km |= ((seq_k[k] >> i) & 1u) << n;
+@@ -1337,12 +1416,20 @@
+             seq_release(t);
+         for (i = 0; i < m; i++)
+             if (!(((sk | on | xs) >> i) & 1u))
++#ifndef JSM_BACK_TO_NORMAL
++                seq_note_on(t, nn[i], vv[i]);  // JSM
++#else
+                 trk_note_on(t, nn[i], vv[i]);
++#endif
+         for (i = 0; i < t->seq_n; i++) {            /* release what is not held over (nor plays again) */
+             for (j = 0; j < m && (nn[j] != t->seq_notes[i] || ((xs >> j) & 1u)); j++)
+                 ;
+             if (j == m)
++#ifndef JSM_BACK_TO_NORMAL
++                seq_note_off(t, t->seq_notes[i]);  // JSM
++#else
+                 trk_note_off(t, t->seq_notes[i]);
++#endif
+         }
+         t->seq_n = 0;
+         for (i = 0; i < m; i++)
+@@ -1714,6 +1801,9 @@
+         if ((pr >> i) & 1u) {
+             midi_forget_track(i);
+             trk_all_off(t);
++#ifndef JSM_BACK_TO_NORMAL
++            seq_midi_panic(t);                        // JSM
++#endif
+             t->nheld = 0;
+             t->arp_phys = 0;
+             arp_forget(t);
