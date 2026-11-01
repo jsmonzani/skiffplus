@@ -1821,6 +1821,126 @@ static void graph_bank(void)
  * With six tracks the rows of the four shown (ui.c trk_top), the tiles 13.4 apart and the band to x 236: the scroll
  * bar at 238 (design/mock_p6.py song). (#28) A REST: a tile as a pattern's, a dash in it for the number (lit while
  * the track is on it); the rests between patterns stay a bare dash (design/mock_rest.py, B) */
+#ifndef JSM_BACK_TO_NORMAL
+// Larger display of song steps, 8 at a time instead of 16 crammed on one screen
+#define SG_PAGE 8                                     /* pas visibles : page 0 = A..H, page 1 = I..P */
+#define SG_X(s) (22 + ((int32_t)(s) * 268 + 5) / 10)  /* slot s (0..7) de la page : tuile 26 de large, 26.8 d'ecart : x 22 .. 235 */
+#define SG_BAND_W 237
+#define SG_W 26
+#define SG_SIX (NTRK > 4)                             /* ((Skiff U3, N1) every track: 20 px bands, 22 apart, 15 px tiles;
+                                                       * four tracks: 24, 27, 18 as before) */
+#define SG_TH (SG_SIX ? 15 : 18)
+#define SG_Y(r) (4 + (SG_SIX ? 22 : 27) * (int32_t)(r))   /* row r's band; the tile 2 px into it */
+#define SG_H (SG_SIX ? 20 : 24)
+static void graph_song(void)
+{
+    uint16_t g0 = T_BG;
+    uint32_t k, p, r, pos;
+    uint32_t pg0 = ((uint32_t)sg.entry % NENT) / SG_PAGE * SG_PAGE;   /* 0 ou 8 : change quand ENTRY passe au 9e pas */
+    cv_rect(0, 0, 240, (int32_t)cv_h, T_BG);         /* (over the panel, as HOME: the rows are on the ground) */
+    cv_bg = T_BG;
+    for (pos = 0, k = 0; k < NTRK; pos++, k++) {        /* ((Skiff U3, N1) every track) */
+        int32_t y = SG_Y(pos), ty = y + 2;
+        int band = k == song.sel % NTRK, cb = band;
+        uint16_t col = T_TRK(k), g = cb ? col : g0;
+        uint32_t cur = bank_cur(k), nx = bank_next(k), first, last, rest = trk_pid[k] ? NENT : lists.cur[k] % NENT;
+        uint32_t ce = sg.entry % NENT, cp = band && song_pick() == SPICK_COPYP ? ent_free_after(k, ce) : NENT, cn = 0,
+                 b0 = 0, b1 = 0, cm = 0, cs = 0, c0, c1;
+        uint8_t ci[NENT];                            /* ((2.0, #33) COPY+: where its copies go ((#44) a chain's, part by
+                                                      * part), their numbers */
+        uint16_t st[2] = {col, ux_mix(col, NE_VIOLET, 70)}, bx = ux_mix(g0, col, 35);
+        char d[2] = {(char)('1' + k), 0};
+        if (cp < NENT) {
+            cn = copy_ids(k, ce, ci);
+            ent_block(k, ce, &b0, &b1);
+            for (p = 0; p < cn; p++)
+                if (ci[p] > NPAT)                    /* (no number for one: nothing shown) */
+                    cp = NENT;
+        }
+        for (first = 0; first < NENT && !ent_on(k, first); first++)   /* ((1.2.1, #12) the empty entries between */
+            ;                                                      /* these two are rests; (#28) a REST is one too */
+        for (last = first < NENT ? NENT - 1u : 0u; last > first && !ent_on(k, last); last--)
+            ;
+        if (cb && ux.neon)                           /* ((Skiff S1) NEON: the band its colour into violet) */
+            ne_hgrad(0, y, SG_BAND_W, SG_H, st, 2);
+        else if (cb)
+            cv_rect(0, y, SG_BAND_W, SG_H, col);
+        else if (band)
+            cv_rrect(3, y, 234, SG_H, 3, T_RAISE, g0);
+        GFX_HOOK_ALIGN(0, y, 0, y + SG_H, AL_V, "song track number on its row's middle");
+        cv_text_on(5, y + CAP_IN(M, SG_H), &AF_M, d, cb ? T_INK : col, g);
+        for (p = 0; p < NENT; p = c1 + 1u)           /* ((2.0, #44, the chain sheet's A) a chain: its tiles on a box of
+                                                      * their own, the band's height and 2 px round them, the track's
+                                                      * colour dimmed (on the band too); COPY+'s copies of one too */
+            if (ent_block(k, p, &c0, &c1))
+                cm |= (2u << c1) - (1u << c0), cs |= 1u << c0;
+        if (cp < NENT && cn > 1u)
+            cm |= ((1u << cn) - 1u) << cp, cs |= 1u << cp;
+        for (p = pg0; p < pg0 + SG_PAGE; p++)        /* (each part's piece of it, visible page only; where two meet,
+                                                      * 2 px inside their tiles: a notch between them; neighbours
+                                                      * off the page are ignored) */
+            if ((cm >> p) & 1u) {
+                int32_t a = !((cs >> p) & 1u) ? -1 : p > pg0 && ((cm >> (p - 1u)) & 1u) ? 2 : -2,
+                        z = p + 1u < pg0 + SG_PAGE && ((cm >> (p + 1u)) & 1u)
+                                ? ((cs >> (p + 1u)) & 1u ? SG_W - 3 : SG_W) : SG_W + 1;
+                cv_rect(SG_X(p - pg0) + a, y, z - a + 1, SG_H, bx);
+            }
+        for (p = pg0; p < pg0 + SG_PAGE; p++) {
+            int32_t x = SG_X(p - pg0);
+            int cpy = p >= cp && p < cp + cn,        /* ((2.0) COPY+'s copy here: of its chain's part p - cp) */
+                in = (int)((cm >> p) & 1u);          /* (on a chain's box: it the ground, the marks the track's colour) */
+            uint16_t gi = in ? bx : g, mk = cb && !in ? T_INK : col;
+            uint32_t src = cpy ? b0 + p - cp : p, id = !cpy ? ent_pat(k, p) : ci[p - cp] ? ci[p - cp] - 1u : PAT_NONE,
+                     reps = ent_reps(k, src);        /* ((2.0, #44) on CHAIN: once, no tick) */
+            int pick = band && p == ce, rt = cpy ? !ci[p - cp] : ent_rest(k, p), on;
+            uint16_t fill, ink;
+            char s[3];
+            if (id == PAT_NONE && !rt) {             /* empty: a dot; ((1.2.1, #12) a rest: a dash, lit while it plays, */
+                uint16_t dc = cb ? ux_mix(col, T_INK, 55) : T_DIM;   /* framed while staged, its repeats under it) */
+                if (p > first && p < last) {
+                    cv_rect(x + 3, ty + SG_TH / 2 - 1, SG_W - 6, 2, p == rest ? (cb ? T_INK : col) : dc);
+                    if (p == nx)
+                        cv_frame(x - 1, ty - 1, SG_W + 2, SG_TH + 2, cb ? T_INK : col);
+                    for (r = 0; r + 1u < reps && r < 3u; r++)
+                        cv_rect(x + 1 + 3 * (int32_t)r, ty + SG_TH + 1, 2, 1, cb ? T_INK : col);
+                } else
+                    cv_rect(x + SG_W / 2 - 1, ty + SG_TH / 2 - 1, 2, 2, dc);
+                if (pick)
+                    cv_frame(x, ty, SG_W, SG_TH, T_TEXT);
+                continue;
+            }
+            on = !cpy && (p == cur || (rt && p == rest));
+            if (pick)
+                fill = T_TEXT, ink = T_INK;
+            else if (on && cb)
+                fill = T_INK, ink = col;
+            else if (on)                             /* autre piste, en lecture : pas de fond de couleur, numero blanc */
+                fill = T_SURF, ink = T_TEXT;
+            else if (cb)
+                fill = ux_mix(col, T_INK, 35), ink = T_INK;
+            else
+                fill = T_SURF, ink = T_MID;
+            cv_rrect(x, ty, SG_W, SG_TH, 0, fill, gi);   /* (la branche ne_tube NEON ne servait plus qu'au cas colore) */
+            if (rt)
+                cv_rect(x + 3, ty + SG_TH / 2 - 1, SG_W - 6, 2, ink);
+            else {
+                pat_num(s, id);
+                GFX_HOOK_ALIGN(x, ty, x + SG_W, ty + SG_TH, AL_HV, "song entry number centred");
+                cv_text_in(x, ty + CAP_IN(M, SG_TH), SG_W, &AF_M, s, ink, fill);
+            }
+            if (lists.snd[k][src][0])                /* ((2.0, #30, the user's pick 2A) an entry with a sound: its tile's
+                                                      * top right corner cut, a 4 px step, to the ground) */
+                for (r = 0; r < 4u; r++)
+                    cv_rect(x + SG_W - 4 + (int32_t)r, ty, 1, (int32_t)r + 1,
+                            cb && ux.neon && !in ? ne_ramp(st, 2, (x + SG_W - 4 + (int32_t)r) * 1000 / (SG_BAND_W - 1)) : gi);
+            if (p == nx || cpy)                      /* staged: comes in at its launch point; ((2.0) COPY+'s: TEXT) */
+                cv_frame(x - 1, ty - 1, SG_W + 2, SG_TH + 2, cpy ? T_TEXT : mk);
+            for (r = 0; r + 1u < reps && r < 3u; r++)
+                cv_rect(x + 1 + 3 * (int32_t)r, ty + SG_TH + 1, 2, 1, mk);
+        }
+    }
+}
+#else
 #define SG_X(p) (22 + ((int32_t)(p) * 134 + 5) / 10)   /* entry p's tile, 13 x 18, 13.4 apart: x 22 .. 235 */
 #define SG_BAND_W 237
 #define SG_W 13
@@ -1935,6 +2055,7 @@ static void graph_song(void)
         }
     }
 }
+#endif
 /* SEQ > AUTOMATION (ui_events.c; 1.1.5's AUTO LIST): the track's records around the one selected, a row each: the kind
  * (LOCK in the accent, AUTO), the step, the parameter's name, the value at the right; the last row + ADD LOCK. (Skiff
  * U3, R5) The first row is the page's own: PLAY ON / OFF and how many records */

@@ -1,12 +1,28 @@
+# Skiff with visual improvements on large view and other improvements.
+
+## How it works
+Set Large in the settings, stay with SKIFF theme and enjoy the new look
+
+## Whats has changed
+### Visuals
+- Parameters presented as 4 lines with large font
+- Font reverted back to Inter
+- Larger display of song steps, 8 at a time instead of 16 crammed on one screen
+
+### Extra
+- MIDI out on sequence play, one channel per voice 
+- PIANO sample loops instead of one shot
+
+### Development
+All changed use the JSM keyword and an unset flag JSM_BACK_TO_NORMAL reverts to the defaults of Skiff. 
+
+# Original documentation
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/logo/skiff-logo.svg">
     <img src="docs/logo/skiff-logo-light.svg" alt="Skiff" width="560">
   </picture>
 </p>
-<h1 align="center">
-Skiff with visual improvements on large view.
-</h1>
 <p align="center"><b>A six-track groovebox firmware for the M-VAVE FM-1 and SMK-37 Pro</b><br>
 synths and drums, patterns and songs, live performance, and a screen that shows what every control does</p>
 
