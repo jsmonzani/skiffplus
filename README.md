@@ -1,9 +1,9 @@
 # Skiff with visual improvements on large view and other improvements.
 
 ## How it works
-Set Large in the settings, stay with SKIFF theme and enjoy the new look
+Set Large in the settings, stay with SKIFF theme and enjoy the new look.
 
-## Whats has changed
+## What has changed
 ### Visuals
 - Parameters presented as 4 lines with large font
 - Font reverted back to Inter
@@ -14,7 +14,7 @@ Set Large in the settings, stay with SKIFF theme and enjoy the new look
 - PIANO sample loops instead of one shot
 
 ### Development
-All changed use the JSM keyword and an unset flag JSM_BACK_TO_NORMAL reverts to the defaults of Skiff. 
+All changes use the JSM keyword and an unset flag JSM_BACK_TO_NORMAL reverts to the defaults of Skiff. 
 
 # Original documentation
 <p align="center">
