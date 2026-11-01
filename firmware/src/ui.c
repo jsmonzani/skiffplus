@@ -538,12 +538,16 @@ static uint32_t large_kind(void)
 #ifndef JSM_BACK_TO_NORMAL
         /* JSM : I don't want the large view on home */
         return LK_OFF;
+    g = cur_page()->graph;
+    return g == GR_BROWSE || g == GR_SLOTS || g == GR_USER || g == GR_BANK || step_page(g) ||
+           g == GR_FEEL || g == GR_SLICES || g == GR_EVENTS || g == GR_SONG || sheet_of(g) || 
+           g == GR_TRK ? LK_LABEL : LK_TALL; // JSM GR_TRK Lane mixer (GLO), don't use large fonts
 #else
         return LK_TALL;
-#endif    
     g = cur_page()->graph;
     return g == GR_BROWSE || g == GR_SLOTS || g == GR_USER || g == GR_BANK || step_page(g) ||
            g == GR_FEEL || g == GR_SLICES || g == GR_EVENTS || g == GR_SONG || sheet_of(g) ? LK_LABEL : LK_TALL;
+#endif    
 }
 /* the geometry of the page shown: the cards' height, the panel's top and height */
 static uint32_t card_h(void) { return large_kind() == LK_TALL ? LG_CARD_H : CARD_H; }
