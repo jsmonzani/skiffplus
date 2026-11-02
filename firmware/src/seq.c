@@ -48,7 +48,12 @@ static uint32_t kb_semi(uint32_t k) { return k < 27u ? k : k < 32u ? k - 32u : k
 #define KB_IN(k) ((k) < 27u ? (k) + 1u : 0u)
 #else
 #define KB_N 27u
+#ifndef JSM_BACK_TO_NORMAL
+static uint8_t kb_vel = 100;             /* JSM the keys' velocity is not fixed but can be changed */
+#define KB_VEL(k) kb_vel
+#else
 #define KB_VEL(k) 100u
+#endif
 #define KB_IN(k) ((k) + 1u)
 #endif
 static uint8_t kb_note[KB_N], kb_trk[KB_N];   /* per key: the note it started and on which track */

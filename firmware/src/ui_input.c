@@ -1861,8 +1861,18 @@ static void presets_turn(int32_t s)
 {
     const page_t *pg = cur_page();
     uint32_t g = pg->graph;
+#ifndef JSM_BACK_TO_NORMAL
+    if (ui.home) {
+        kb_vel = (uint8_t)clamp((int32_t)kb_vel + accel(EN_SELECT, s, 126), 1, 127); // Turning PRESETS on HOME changes velocity
+        char b[8];
+        fmt_int(b, kb_vel);
+        ui_say("VEL ", b);        
+    } else if (g == GR_BROWSE) {
+        preset_step(s);
+#else
     if (ui.home || g == GR_BROWSE) {
         preset_step(s);
+#endif
     } else if (step_page(g) || g == GR_FEEL) {
         if (roll_on() && ui.entry_open) {
             entry_len(s);

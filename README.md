@@ -10,6 +10,7 @@ Set Large in the settings, stay with SKIFF theme and enjoy the new look.
 - Larger display of song steps, 8 at a time instead of 16 crammed on one screen
 
 ### Extra
+- PRESETS on HOME changes the velocity
 - MIDI out on sequence play, one channel per voice 
 - PIANO sample loops instead of one shot
 
