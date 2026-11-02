@@ -803,7 +803,11 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
         }
         if (!env && !m.amp0 && v->stage == 2 && !e->sampled)
             continue;                                   /* held at a silent sustain (SUS 0): nothing to render */
+#ifndef JSM_BACK_TO_NORMAL
+        pitch = v->pitch_cur + tune + bend16 + (lpit >> 3) + ((m.envq15 * p[P_ED_PIT] * 3) >> 15); // JSM less pitch modulation on the hardwired LFO->PITCH modulation (1st in the mod matrix) 
+#else
         pitch = v->pitch_cur + tune + bend16 + lpit + ((m.envq15 * p[P_ED_PIT] * 3) >> 15);
+#endif        
         m.pitch16 = clamp(pitch, 0, 2047);
         m.inc = pitch_inc(m.pitch16);
         m.fine = v->fine + tune_fine + bend_fine + lfine;

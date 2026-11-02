@@ -13,6 +13,7 @@ Set Large in the settings, stay with SKIFF theme and enjoy the new look.
 - PRESETS on HOME changes the velocity
 - MIDI out on sequence play, one channel per voice 
 - PIANO sample loops instead of one shot
+- less pitch modulation on the hardwired LFO->PITCH modulation (1st in the mod matrix)
 
 ### Development
 All changes use the JSM keyword and an unset flag JSM_BACK_TO_NORMAL reverts to the defaults of Skiff. 
