@@ -23,13 +23,21 @@
 /* (SMK-37 Pro, SMK37_UX.md) KEY VELOCITY in CONTROL (question 8); no LEDS row (button LEDs A: on or off only): MI_LEDS
  * past MI_COUNT, so its setting stays and no tab shows it */
 enum { MI_COLOR, MI_PHEAD, MI_LARGE, MI_ANIM, MI_SCROFF, MI_HINTS, MI_HOLD, MI_ACCEL, MI_BPMLOCK, MI_SCLLED, MI_PREVIEW,
+#ifndef JSM_BACK_TO_NORMAL
+       MI_RETURN, MI_KVEL, MI_MWNOTE, MI_LOWCUT, MI_USB, MI_CLICK, MI_CLKLVL, MI_COUNTIN, MI_TUNE, MI_CLOCK, MI_ROUTE,
+#else
        MI_RETURN, MI_KVEL, MI_LOWCUT, MI_USB, MI_CLICK, MI_CLKLVL, MI_COUNTIN, MI_TUNE, MI_CLOCK, MI_ROUTE,
+#endif
        MI_LEARN, MI_LCLEAR, MI_TCH1, MI_TCH2, MI_TCH3, MI_TCH4, MI_TCH5, MI_TCH6, MI_SERIAL_IN MI_RESTORE, MI_CPU, MI_CLK,
        MI_PANEL, MI_RESET, MI_ABOUT, MI_COUNT, MI_LEDS MI_SERIAL_OUT };
 static const char *const KVEL_N[SMK_KV_N] = {"DYNAMIC", "SOFT", "HARD", "FIXED 64", "FIXED 100", "FIXED 127"};
 #else
 enum { MI_COLOR, MI_PHEAD, MI_LARGE, MI_ANIM, MI_LEDS, MI_SCROFF, MI_HINTS, MI_HOLD, MI_ACCEL, MI_BPMLOCK, MI_SCLLED,
+#ifndef JSM_BACK_TO_NORMAL
+       MI_PREVIEW, MI_RETURN, MI_MWNOTE, MI_LOWCUT, MI_USB, MI_CLICK, MI_CLKLVL, MI_COUNTIN, MI_TUNE, MI_CLOCK, MI_ROUTE,
+#else
        MI_PREVIEW, MI_RETURN, MI_LOWCUT, MI_USB, MI_CLICK, MI_CLKLVL, MI_COUNTIN, MI_TUNE, MI_CLOCK, MI_ROUTE,
+#endif
        MI_LEARN, MI_LCLEAR, MI_TCH1, MI_TCH2, MI_TCH3, MI_TCH4, MI_TCH5, MI_TCH6, MI_SERIAL_IN MI_RESTORE, MI_CPU, MI_CLK,
        MI_PANEL, MI_RESET, MI_ABOUT, MI_COUNT MI_SERIAL_OUT };
 #endif   /* ((Skiff U4, A3) HINTS; RESET SETTINGS, a row with no value: its dialog) */   /* ((Skiff U3, R8, R2) CLOCK, MIDI IN, TUNE: the unit's, GLOBAL's and SYSTEM's before; CPU: read) */   /* (1.1: the metronome's rows in
@@ -44,6 +52,9 @@ static const char *const MI_NAME[MI_COUNT] = {"THEME", "PLAYHEAD", "LARGE", "ANI
                                               "SCALE LEDS", "STEP PREVIEW", "RETURN",
 #if BOARD_SMK37
                                               "KEY VELOCITY",
+#endif
+#ifndef JSM_BACK_TO_NORMAL
+                                              "MW NOTE",
 #endif
                                               "SPEAKER EQ", "USB LEVEL", "CLICK", "CLICK LEVEL", "COUNT-IN", "TUNE",
                                               "CLOCK", "MIDI IN", "MIDI LEARN", "LEARN CLEAR",
@@ -73,6 +84,9 @@ static const uint8_t MI_TAB[MI_COUNT] = {
     MTAB_CONTROL,                                                           /* (2.0, D 2A) RETURN */
 #if BOARD_SMK37
     MTAB_CONTROL,                                                           /* (SMK-37) KEY VELOCITY */
+#endif
+#ifndef JSM_BACK_TO_NORMAL
+    MTAB_CONTROL,                                                           /* JSM MW NOTE */
 #endif
     MTAB_AUDIO, MTAB_AUDIO, MTAB_AUDIO, MTAB_AUDIO, MTAB_AUDIO,             /* SPEAKER EQ, USB LEVEL, CLICK, CLICK LEVEL,
                                                                              * COUNT-IN */
@@ -134,6 +148,10 @@ static const char *const SCROFF_N[5] = {"NEVER", "5 MIN", "15 MIN", "30 MIN", "6
 /* (2.0, D 2A) RETURN (ui.c ret_mode): MOMENTARY's values, FX's macros and PERFORM's throws come back at once or over
  * this long; 1 BAR the default */
 static const char *const RET_N[3] = {"SNAP", "1 BEAT", "1 BAR"};
+#ifndef JSM_BACK_TO_NORMAL
+/* JSM MW NOTE (seq.c mw_note, not saved): NONE, or the pitch class, in any octave, that is the modwheel key */
+static const char *const MW_N[13] = {"NONE", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+#endif
 
 /* MENU > USB SERIAL (#67). The serial console is a developer tool (README: FELUCCA_CDC). ON (the default) presents it,
  * the descriptors byte for byte as before; OFF re-enumerates as audio + MIDI only, device class 0 (the bytes of a
@@ -170,6 +188,9 @@ static uint32_t menu_n(uint32_t row)
            row == MI_HOLD ? 4u : row == MI_LEDS ? LEDS_COUNT : row == MI_SCROFF ? NELEM(SCROFF_N) :
            row == MI_CLOCK ? NELEM(N_CLOCK) : row == MI_TUNE ? 101u : row == MI_CPU ? 1u + FELUCCA_CPU2 :
            MI_TCH(row) ? 16u : row == MI_LEARN || row == MI_LCLEAR ? 1u :
+#ifndef JSM_BACK_TO_NORMAL
+           row == MI_MWNOTE ? 13u :
+#endif
 #if BOARD_SMK37
            row == MI_KVEL ? SMK_KV_N :
 #endif
@@ -194,6 +215,9 @@ static uint32_t menu_get(uint32_t row)
     case MI_HINTS: return ui_hints_off != 0;
     case MI_PREVIEW: return PREVIEW_SET ? 1u : 0u;
     case MI_RETURN: return ret_mode();
+#ifndef JSM_BACK_TO_NORMAL
+    case MI_MWNOTE: return mw_note % 13u;
+#endif
     case MI_TUNE: return (uint32_t)clamp(song.g[G_TUNE] + 50, 0, 100);
 #if FELUCCA_CPU2
     case MI_CPU: return CPU2_SET ? 1u : 0u;            /* ((Skiff 1.3) 1 CORE, 2 CORES (BETA): from the next power-on) */
@@ -245,6 +269,9 @@ static const char *menu_vname(uint32_t row, uint32_t v)
     case MI_HINTS: return v & 1u ? "OFF" : "ON";
     case MI_PREVIEW: return v & 1u ? "ON" : "OFF";
     case MI_RETURN: return RET_N[v % 3u];
+#ifndef JSM_BACK_TO_NORMAL
+    case MI_MWNOTE: return MW_N[v % 13u];
+#endif
     case MI_TUNE: case MI_CPU: {                       /* "+12 CT"; the audio's share of each half-buffer ("14 %") */
         static char b[20] __attribute__((section(".pool")));
         int32_t c = row == MI_TUNE ? (int32_t)v - 50 : (int32_t)(song.cpu_q8 * 100u / 256u);
@@ -321,6 +348,9 @@ static void menu_put(uint32_t row, uint32_t v)
         CPU2_BYTE = (uint8_t)(v & 1u ? CPU2_BYTE | 2u : CPU2_BYTE & ~2u);
         break;
     case MI_RETURN: RET_BYTE = (uint8_t)(RET_BAR - v % 3u); break;   /* ((2.0) ui.c ret_mode) */
+#ifndef JSM_BACK_TO_NORMAL
+    case MI_MWNOTE: mw_note = (uint8_t)(v % 13u); break;   /* JSM (seq.c: read every block) */
+#endif
 #if FELUCCA_CPU2
     case MI_CPU:                                       /* ((Skiff 1.3) the second core: started at power-on only, main.c) */
         CPU2_BYTE = (uint8_t)(v ? CPU2_BYTE | 1u : CPU2_BYTE & ~1u);
@@ -365,6 +395,9 @@ static void settings_reset(void)
     menu_put(MI_PHEAD, 0);
     menu_put(MI_PREVIEW, 0);
     menu_put(MI_RETURN, RET_BAR);
+#ifndef JSM_BACK_TO_NORMAL
+    menu_put(MI_MWNOTE, 0);                            /* JSM no MW NOTE */
+#endif
 #if FELUCCA_CPU2
     menu_put(MI_CPU, 0);                               /* ((Skiff 1.3) 1 CORE) */
 #endif

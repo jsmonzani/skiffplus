@@ -14,6 +14,8 @@ Set Large in the settings, stay with SKIFF theme and enjoy the new look.
 - MIDI out on sequence play, one channel per voice 
 - PIANO sample loops instead of one shot
 - less pitch modulation on the hardwired LFO->PITCH modulation (1st in the mod matrix)
+- HOME settings > CONTROL > MW Note: pressing this note will simulate mod wheel (which can be then used in modulation such as MODW->VIB. MW Notes are recorded but not played through MIDI)
+- fix when recording overlapping notes in the sequence (a held note would held notes and erase notes underneath - look for a "held note must not erase what it crosses" in seq.c)
 
 ### Development
 All changes use the JSM keyword and an unset flag JSM_BACK_TO_NORMAL reverts to the defaults of Skiff. 

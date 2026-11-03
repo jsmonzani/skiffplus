@@ -168,6 +168,36 @@ static uint32_t kb_map(const track_t *t, uint32_t k)
 #include "chord.c"
 
 #ifndef JSM_BACK_TO_NORMAL
+/* JSM ---- MW NOTE: one pitch class (MENU > CONTROL > MW NOTE, any octave) is a modwheel key, not a note ----
+ * Pressed it is recorded like a note (rec_note / rec_release), but nothing sounds and nothing goes to MIDI OUT: while it
+ * is down (live, or the sequencer playing the step that holds it) the track's t->mw (0..127, the CC1's) rises to 127 in
+ * 0.5 s, and falls back to 0 in 0.5 s when it is let go. One setting for all tracks, not saved (0 at power-on).
+ * Not on a DRUM track nor an engine with its own key map (their notes are lanes / slices). MIDI IN plays as ever.
+ * In the pool: a new .bss global would move the others. Build with -DJSM_BACK_TO_NORMAL to get the original code back. */
+static volatile uint8_t mw_note __attribute__((section(".pool")));    // JSM 0 none, 1..12 C..B (MENU)
+static uint8_t mw_tgt __attribute__((section(".pool")));              // JSM bit per track: a MW key is down
+static uint8_t mw_dir __attribute__((section(".pool")));              // JSM bit per track: the ramp's direction now (1 up)
+static uint8_t mw_run __attribute__((section(".pool")));              // JSM bit per track: a ramp is going
+static uint16_t mw_pos[NTRK] __attribute__((section(".pool")));       // JSM t->mw << 8 while it ramps
+static uint32_t mw_ms __attribute__((section(".pool")));              // JSM fm1_ms at the last mw_block
+
+static int mw_is(const track_t *t, uint32_t note)                      // JSM
+{
+    const engine_t *e;
+    if (!mw_note || note % 12u != (uint32_t)mw_note - 1u || drum_track(t))
+        return 0;
+    e = ENGINES[eng_idx(t->eng_req)];
+    return !(e->keys && e->keys(t, 0) >= 0);
+}
+
+static void mw_set(const track_t *t, uint32_t on)                      // JSM
+{
+    uint32_t b = 1u << trk_index(t);
+    mw_tgt = (uint8_t)(on ? mw_tgt | b : mw_tgt & ~b);
+}
+
+#endif /* JSM_BACK_TO_NORMAL */
+#ifndef JSM_BACK_TO_NORMAL
 /* JSM ---- MIDI OUT of what the sequencer and the arp play, on the track's channel (trk_midi_ch) ----
  * The keys already go out in key_on / key_off; MIDI IN is not echoed. These two wrap trk_note_on / trk_note_off for the
  * arp and the sequencer only (not input_on / input_off: the keys would go out twice). mo_on remembers, per track, which
@@ -207,12 +237,20 @@ static void seq_midi_panic(track_t *t)                                 // JSM ev
 
 static void seq_note_on(track_t *t, uint32_t note, uint32_t vel)       // JSM
 {
+    if (mw_is(t, note)) {                              /* MW NOTE: the modwheel rises, nothing sounds or is sent */
+        mw_set(t, 1);
+        return;
+    }
     seq_midi_on(t, note, vel);
     trk_note_on(t, note, vel);
 }
 
 static void seq_note_off(track_t *t, uint32_t note)                    // JSM
 {
+    if (mw_is(t, note)) {                              /* MW NOTE: the modwheel falls */
+        mw_set(t, 0);
+        return;
+    }
     seq_midi_off(t, note);
     trk_note_off(t, note);
 }
@@ -800,6 +838,20 @@ static __attribute__((noinline)) void rec_hold(track_t *t, uint32_t idx, uint32_
         t->rh_n = 0;                                /* disarmed, or the whole pattern is this note */
         return;
     }
+#ifndef JSM_BACK_TO_NORMAL
+    /* JSM a held note must not erase what it crosses: a POLY track playing forward, the hold reaching a step that holds
+     * notes (or hits): from there it goes on beside them as a per-note tie (rec_hold_mix, as when two holds overlap), not
+     * as a TIE that would take the step's notes out. Steps with nothing in them are TIEs as before. A MONO / LEGATO /
+     * UNISON step holds one note, and the other directions' ties aren't kept (rec_poly): they stay as they were */
+    if (!rec_mix[trk_index(t)] && idx != t->rh_start && rec_poly(t)) {
+        const step_t *nx = &t->step[idx];
+        if (nx->time == ST_NOTE && (nx->n || nx->hit)) {
+            for (k = 0; k < t->rh_n; k++)
+                rec_n[trk_index(t)][k] = t->rh_ties;   /* (as the second hold's start: rec_note) */
+            rec_mix[trk_index(t)] = 1;
+        }
+    }
+#endif
     if (rec_mix[trk_index(t)]) {
         rec_hold_mix(t, idx, len);                  /* ((2.0) held notes started on different steps) */
         return;
@@ -912,6 +964,30 @@ static void input_off(track_t *t, uint32_t note)
     trk_note_off(t, note);                          /* other mode (ARP switched while held) */
 }
 
+#ifndef JSM_BACK_TO_NORMAL
+/* JSM MW NOTE, a key of it: recorded as a note (the ARP on too: it never sees this key), not played nor sent */
+static void mw_key_on(track_t *t, uint32_t note, uint32_t vel)         // JSM
+{
+    if (cin_left)
+        cin_keep(t, note, vel);
+    if (rec_on(t))
+        rec_note(t, note, vel);
+    mw_set(t, 1);
+}
+
+static void mw_key_off(track_t *t, uint32_t note)                      // JSM
+{
+    if (cin_left) {                                 /* (as input_off: a kept note let go before step 1) */
+        uint32_t i = trk_index(t), k;
+        for (k = 0; k < cin_n[i]; k++)
+            if (cin_note[i][k] == note)
+                cin_up[i] |= (uint8_t)(1u << k);
+    }
+    rec_release(t, note);
+    mw_set(t, 0);
+}
+#endif /* JSM_BACK_TO_NORMAL */
+
 /* the effect of key k in the FX layer (PF_N none): the first PF_M1 white keys (F3 .. E5) in order, black keys
  * 1..6 (F#3 .. F#4) the tracks' cuts while held ((2.0) a tap: their MUTE, ui_layer.c mute_keys) */
 static uint32_t perf_key(uint32_t k)
@@ -931,6 +1007,12 @@ static void key_on(uint32_t k, track_t *t)
         uint32_t x = kb_chord[k][i];
         if (midi_local_held(t, x))
             continue;
+#ifndef JSM_BACK_TO_NORMAL
+        if (mw_is(t, x)) {                          /* MW NOTE: the modwheel, no sound, no MIDI OUT */
+            mw_key_on(t, x, KB_VEL(k));
+            continue;
+        }
+#endif
         input_on(t, x, KB_VEL(k));
         midi_out_event(0x09u | (0x90u | mc) << 8 | x << 16 | KB_VEL(k) << 24);
     }
@@ -948,6 +1030,12 @@ static void key_off(uint32_t k, track_t *t)
         uint32_t x = kb_chord[k][i];
         if (midi_local_held(t, x))
             continue;
+#ifndef JSM_BACK_TO_NORMAL
+        if (mw_is(t, x)) {
+            mw_key_off(t, x);
+            continue;
+        }
+#endif
         input_off(t, x);
         midi_out_event(0x08u | (0x80u | mc) << 8 | x << 16);
     }
@@ -1745,6 +1833,48 @@ static int32_t click_beat_now(void)
     return clk_pos == CLK_START ? 0 : (int32_t)(clk_step >> 2);
 }
 
+#ifndef JSM_BACK_TO_NORMAL
+/* JSM MW NOTE: t->mw of each track whose MW key is down (mw_tgt) rises to 127, else falls to 0, 0.5 s end to end, from
+ * where it is (a CC1 set it: the ramp starts there). Written only while it ramps: CC1 is left alone otherwise */
+static void mw_block(void)                                             // JSM
+{
+    uint32_t i, dt = fm1_ms - mw_ms, d;
+    mw_ms = fm1_ms;
+    if (dt > 500u)
+        dt = 500u;
+    d = dt * (127u << 8) / 500u;
+    if (!mw_note)
+        mw_tgt = 0;                                    /* (MW NOTE set to NONE: let go) */
+    for (i = 0; i < NTRK; i++) {
+        track_t *t = &trk[i];
+        uint32_t b = 1u << i, want = (mw_tgt & b) != 0u, p;
+        if (want != ((mw_dir & b) != 0u)) {            /* pressed or let go: a ramp from the present value */
+            p = (uint32_t)t->mw;
+            mw_pos[i] = (uint16_t)((p > 127u ? 127u : p) << 8);
+            mw_dir = (uint8_t)(mw_dir ^ b);
+            mw_run |= (uint8_t)b;
+        }
+        if (!(mw_run & b))
+            continue;
+        p = mw_pos[i];
+        if (want) {
+            p += d;
+            if (p >= (127u << 8)) {
+                p = 127u << 8;
+                mw_run = (uint8_t)(mw_run & ~b);
+            }
+        } else if (p > d) {
+            p -= d;
+        } else {
+            p = 0;
+            mw_run = (uint8_t)(mw_run & ~b);
+        }
+        mw_pos[i] = (uint16_t)p;
+        t->mw = (uint8_t)((p + 128u) >> 8);
+    }
+}
+#endif /* JSM_BACK_TO_NORMAL */
+
 /* everything that happens between two rendered blocks */
 static void events_block(uint32_t n)
 {
@@ -1808,6 +1938,7 @@ static void events_block(uint32_t n)
             trk_all_off(t);
 #ifndef JSM_BACK_TO_NORMAL
             seq_midi_panic(t);                        // JSM
+            mw_tgt = (uint8_t)(mw_tgt & ~(1u << i));  // JSM MW NOTE: the key's modwheel lets go too
 #endif
             t->nheld = 0;
             t->arp_phys = 0;
@@ -1860,6 +1991,9 @@ static void events_block(uint32_t n)
         seq_audition();                               /* ((1.3) STEP PREVIEW: a step sounds, stopped) */
     for (i = 0; i < NTRK; i++)
         seq_tick(&trk[i], seq_n);
+#ifndef JSM_BACK_TO_NORMAL
+    mw_block();                                       // JSM MW NOTE: the modwheel ramps
+#endif
     if (cin_flush)
         cin_record();
     if (song.playing)
