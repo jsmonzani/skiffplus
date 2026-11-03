@@ -68,6 +68,9 @@ static const char *const N_DASH[] = {"--"};
 static const char *const N_RTYPE[] = {"ROOM", "SPRING", "HALL"};   /* G_RTYPE: the reverb bus's model (fx.c) */
 static const char *const N_CMODE[] = {"CHORUS", "FLANGER", "PHASER"};   /* (Skiff phase 9) G_CMODE (fx.c cho_mode) */
 static const char *const N_GO[] = {"--", "GO"};
+#ifndef JSM_BACK_TO_NORMAL
+static const char *const N_MWNOTE[] = {"NONE", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};   /* JSM G_MWNOTE */
+#endif
 static const char *const N_SLCR[] = {"OFF", "GATE", "STUT"};             /* SL_OFF .. SL_STUT (slicer.c) */
 static const char *const N_SLDIV[] = {"1/8", "1/16", "1/32", "8T", "16T", "32T"};   /* SL_DEN */
 /* modulation matrix (mod.c): sources, destinations (E1..E8 = P_E0..P_E7: shown with the engine's labels) */
@@ -213,7 +216,11 @@ static const param_desc_t GP[G_COUNT] = {
     [G_LOAD] = PE("LOAD", N_GO, 0),
     [G_SAVE] = PE("SAVE", N_GO, 0),
     [G_ENGSEL] = PE("ENGINE", N_ENGNAME, 0),
+#ifndef JSM_BACK_TO_NORMAL
+    [G_MWNOTE] = PE("MW NOTE", N_MWNOTE, 0),      /* JSM (in G_ENGGO's id, unused: see core.h) */
+#else
     [G_ENGGO] = PE("SET", N_GO, 0),
+#endif
     [G_CLRSEQ] = PE("CLRSQ", N_GO, 0),
     [G_INITSND] = PE("INIT", N_GO, 0),
     /* the reverb's model on the REVERB page: the id of the old GM drum channel (G_DRCH, inert since 1.0) */
@@ -542,7 +549,11 @@ static const page_t PAGES[] = {
     {"DELAY", FAM_GLO, SC_GLOBAL, GR_DELAY, {G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX}},   /* ((U3, N4) the buses: FX's before) */
     {"REVERB", FAM_GLO, SC_GLOBAL, GR_REVERB, {G_RTYPE, G_RSIZE, G_RDAMP, 0xFF}},   /* TYPE: ROOM / SPRING / HALL */
     {"CHORUS", FAM_GLO, SC_GLOBAL, GR_CHORUS, {G_CRATE, G_CDEPTH, G_CMODE, G_CFDBK}},   /* ((phase 9) MODE, FEEDBACK) */
+#ifndef JSM_BACK_TO_NORMAL
+    {"GLOBAL", FAM_GLO, SC_GLOBAL, GR_GLOBAL, {G_BPM, G_SWING, G_MWNOTE, 0xFF}},   /* ((U3, R8) CLK TUNE: the MENU's) JSM MW NOTE */
+#else
     {"GLOBAL", FAM_GLO, SC_GLOBAL, GR_GLOBAL, {G_BPM, G_SWING, 0xFF, 0xFF}},   /* ((U3, R8) CLK TUNE: the MENU's) */
+#endif
     {"PRESETS", FAM_SAVE, SC_GLOBAL, GR_BROWSE, {0xFF, 0xFF, 0xFF, 0xFF}},   /* browser: PRESETS knob / KNOB 1 */
     {"USER", FAM_SAVE, SC_GLOBAL, GR_USER, {0xFF, 0xFF, 0xFF, 0xFF}},       /* user presets: SLOT LOAD ERASE SAVE */
     {"PATTERNS", FAM_SAVE, SC_GLOBAL, GR_BANK, {0xFF, 0xFF, 0xFF, 0xFF}},   /* (Skiff phase 5) the pool: PATTERN LEN USED CLEAR */

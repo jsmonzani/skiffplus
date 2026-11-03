@@ -168,13 +168,13 @@ static uint32_t kb_map(const track_t *t, uint32_t k)
 #include "chord.c"
 
 #ifndef JSM_BACK_TO_NORMAL
-/* JSM ---- MW NOTE: one pitch class (MENU > CONTROL > MW NOTE, any octave) is a modwheel key, not a note ----
+/* JSM ---- MW NOTE: one pitch class (GLO > GLOBAL > MW NOTE, any octave) is a modwheel key, not a note ----
  * Pressed it is recorded like a note (rec_note / rec_release), but nothing sounds and nothing goes to MIDI OUT: while it
  * is down (live, or the sequencer playing the step that holds it) the track's t->mw (0..127, the CC1's) rises to 127 in
- * 0.5 s, and falls back to 0 in 0.5 s when it is let go. One setting for all tracks, not saved (0 at power-on).
+ * 0.5 s, and falls back to 0 in 0.5 s when it is let go. One setting for all tracks, the project's (song.g[G_MWNOTE]).
  * Not on a DRUM track nor an engine with its own key map (their notes are lanes / slices). MIDI IN plays as ever.
  * In the pool: a new .bss global would move the others. Build with -DJSM_BACK_TO_NORMAL to get the original code back. */
-static volatile uint8_t mw_note __attribute__((section(".pool")));    // JSM 0 none, 1..12 C..B (MENU)
+#define mw_note ((uint32_t)song.g[G_MWNOTE])                          // JSM 0 none, 1..12 C..B (GLO > GLOBAL, the project's)
 static uint8_t mw_tgt __attribute__((section(".pool")));              // JSM bit per track: a MW key is down
 static uint8_t mw_dir __attribute__((section(".pool")));              // JSM bit per track: the ramp's direction now (1 up)
 static uint8_t mw_run __attribute__((section(".pool")));              // JSM bit per track: a ramp is going

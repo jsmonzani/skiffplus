@@ -130,8 +130,13 @@ enum {                          /* global parameters */
     G_RSIZE, G_RDAMP, G_CRATE, G_CDEPTH,
     G_MIDI, G_SYNC, G_ROUTE, G_INFO,   /* G_ROUTE: MIDI IN, 0 CH1-6 (channels 1..6 -> parts 1..6, 7..16 ignored), 1 SEL (seq.c) */
     G_SLOT, G_NAME, G_LOAD, G_SAVE,
+#ifndef JSM_BACK_TO_NORMAL
+    G_ENGSEL, G_ENGGO,          /* no page: the editor switches the engine with a SET of G_ENGSEL; G_ENGGO was unused: its id
+                                 * is now G_MWNOTE's (below; ids are fixed by the formats and the protocol) */
+#else
     G_ENGSEL, G_ENGGO,          /* no page: the editor switches the engine with a SET of G_ENGSEL; G_ENGGO is
                                  * unused (ids are fixed by the formats and the protocol) */
+#endif
     G_CLRSEQ, G_INITSND,
     G_RTYPE,                    /* REVERB TYPE: 0 ROOM, 1 SPRING, (Skiff phase 9) 2 HALL (fx.c). Was G_DRCH, the GM drum part's MIDI
                                  * channel (inert since 1.0, never read); projects of formats before FUN7 load it
@@ -142,6 +147,11 @@ enum {                          /* global parameters */
                                  * (project.c proj_drums_to_part), then sets them 0 (proj_import) */
     G_COUNT
 };
+#ifndef JSM_BACK_TO_NORMAL
+/* JSM GLO > GLOBAL > MW NOTE (seq.c mw_is): the pitch class, in any octave, that is a modwheel key; 0 none, 1..12 C..B. The
+ * project's (SKF4 holds it by GSID, as every global), in the id of G_ENGGO (inert): G_COUNT stays */
+#define G_MWNOTE G_ENGGO
+#endif
 
 /* stored parameters of an older layout -> today's P_* order. A store keeps np = the P_COUNT it was
  * written with; common parameters are only ever added just before P_E0, so the first np - 8 are
