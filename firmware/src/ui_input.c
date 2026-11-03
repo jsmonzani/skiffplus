@@ -2452,6 +2452,12 @@ static void ui_input(void)
             song_back();
         else if (ui.act)
             ui.act = ui.act2 = 0;
+#ifndef JSM_BACK_TO_NORMAL
+        else if (cur_page()->graph == GR_EVENTS && !ui.ev_top) {   /* JSM AUTO LIST: OCT- deletes the record the cursor is on */
+            ui.ev_del = 0;                              /* (what OCT+ does on DELETE, without arming it first; + ADD LOCK: */
+            ev_delete();                                /* NOTHING TO DELETE; the top row keeps going HOME) */
+        }
+#endif
         else if (ui.ev_del)                             /* ((Skiff U2) AUTO LIST's DELETE) */
             ui.ev_del = 0;
         else

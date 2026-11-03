@@ -14,7 +14,7 @@ Set Large in the settings, stay with SKIFF theme and enjoy the new look.
 - MIDI out on sequence play, one channel per voice 
 - PIANO sample loops instead of one shot
 - less pitch modulation on the hardwired LFO->PITCH modulation (1st in the mod matrix)
-- GLO > goto page 5 with BPM > MW Note: pressing this note will simulate mod wheel (which can be then used in modulation such as MODW->VIB. MW Notes are recorded but not played through MIDI)
+- GLO > goto page 5 with BPM > MW Note: pressing this note will simulate mod wheel (which can be then used in modulation such as MODW->VIB. MW Notes are not recorded and not played through MIDI but store the MODW state as automation. New MODW destination source as well, using an unused P_ED_FX parameter.
 - fix when recording overlapping notes in a sequence (a held note would held notes and erase notes underneath - look for a "held note must not erase what it crosses" in seq.c)
 
 ### Development

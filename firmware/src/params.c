@@ -101,7 +101,11 @@ static const param_desc_t TP[P_COUNT] = {
     [P_ED_FLT] = PD("CUTOFF", F_BIPCT, -64, 63, 0),
     [P_ED_PIT] = PD("PITCH", F_BIPCT, -64, 63, 0),
     [P_ED_SHP] = PD("SHAPE", F_BIPCT, -64, 63, 0),
+#ifndef JSM_BACK_TO_NORMAL
+    [P_ED_FX] = PD("MODW", F_INT, 0, 127, 0),   /* JSM the modwheel as a MOTION parameter (seq.c mw_block, MW NOTE) */
+#else
     [P_ED_FX] = PD("FX", F_BIPCT, -64, 63, 0),
+#endif
     [P_LRATE] = PD("RATE", F_LFOHZ, 0, 127, 60),
     [P_LWAVE] = PE("WAVE", N_LWAVE, 0),
     [P_LPHASE] = PD("PHASE", F_INT, 0, 127, 0),

@@ -13,7 +13,7 @@
  *   OCT+   on + ADD LOCK: a lock on the step and parameter KNOB 2 / 3 set there (the SEQ cursor's step and the first
  *          parameter of the sound page shown last, to begin with), at the sound's own value; on a record: its kind
  *          LOCK <-> AUTO (an automation event holds its value until the next one, a lock sounds on its step only)
- *   KNOB 4 past the value's lowest: DELETE ((Skiff U2), was EDIT), OCT+ deletes the record;  OCT- goes HOME
+ *   KNOB 4 past the value's lowest: DELETE ((Skiff U2), was EDIT), OCT+ deletes the record;  OCT- goes HOME (JSM: on a record OCT- deletes it)
  * Every edit is one undo (SAVE held: ui.c motion_undo_take; a knob turned on is one). Not while a song plays
  * (STOP TO EDIT). The 64 records are shared by all the tracks: AUTOMATION FULL when they are used */
 static int32_t accel(uint32_t role, int32_t s, int32_t range);
@@ -23,7 +23,11 @@ static int32_t accel(uint32_t role, int32_t s, int32_t range);
 static int ev_id_ok(const track_t *t, uint32_t id)
 {
     const param_desc_t *d;
+#ifndef JSM_BACK_TO_NORMAL
+    if (id >= P_COUNT || !motion_param(id) || (id >= P_FM1_ATK && id <= P_FM4_LEVEL))   /* JSM P_ED_FX is MODW: listed */
+#else
     if (id >= P_COUNT || !motion_param(id) || id == P_ED_FX || (id >= P_FM1_ATK && id <= P_FM4_LEVEL))
+#endif
         return 0;
     if (id >= P_LN0 && id <= P_LN7)
         return drum_track(t);
