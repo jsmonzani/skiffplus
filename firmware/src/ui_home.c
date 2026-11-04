@@ -64,10 +64,17 @@ static void graph_tracks(void)
         uint32_t first = hl_bar(t, &n), play = t->seq_idx % 16u;
         int sel = k == song.sel, muted = t->p[P_MUTE] != 0, big = sel || !six;
         int32_t h = big ? HL_H : HL_C_H, ch = big ? HL_CELL_H : HL_C_CELL_H, b[4];
+#ifndef JSM_BACK_TO_NORMAL
+        uint16_t col = muted ? T_DIM : T_TRK(k);
+        uint16_t lane = sel ? T_RAISE : T_SURF;
+        uint16_t on = col, off = T_LINE;      
+#else                                                
         int ib = sel && !ux.quark;                    /* (the selected lane a band, INK on it; (Skiff Q3) QUARK: a beam,
                                                        * its colour faint, the colours as on the others) */
         uint16_t col = muted ? T_DIM : T_TRK(k), lane = sel ? (ux.quark ? ux_mix(col, T_BG, 80) : col) : ux.quark ? T_BG : T_SURF;
         uint16_t ink = ib ? T_INK : T_TEXT, on = ib ? T_INK : col, off = ib ? ux_mix(col, T_INK, 55) : T_LINE;
+#endif
+
         char name[20], d[2] = {(char)('1' + k), 0};
         if (ux.crypt && !sel)                         /* (Skiff C3) CRYPT: the lanes stone */
             cr_stone(3, y, 234, h, lane);
@@ -76,7 +83,13 @@ static void graph_tracks(void)
             uint16_t st[2] = {col, ux_mix(col, NE_VIOLET, 70)};
             ne_hgrad(3, y, 234, h, st, 2);
         } else
+#ifndef JSM_BACK_TO_NORMAL
+            cv_rect(3, y, 234, h, T_BG);
+            if (big)
+                cv_rect(3, y, 6, h, col);
+#else        
             cv_rect(3, y, 234, h, lane);
+#endif
         if (ux.quark && sel) {                        /* (Skiff Q3) QUARK: the beam's walls lit; the others two rails */
             cv_rect(3, y, 234, 1, col);
             cv_rect(3, y + h - 1, 234, 1, col);
@@ -89,16 +102,32 @@ static void graph_tracks(void)
                 cv_rect((int32_t)i, y + h + 1, 5, 1, ux_mix(NE_YELLOW, T_BG, 65));
         text_ink(big ? &AF_V : &AF_M, d, b);             /* the number itself: the colour on SURF, INK on the band */
         GFX_HOOK_ALIGN(0, y, 0, y + h, AL_V, "home lane number on its middle");
+#ifndef JSM_BACK_TO_NORMAL
+        cv_text_on(HL_NUM_X - b[0], y + (big ? CAP_IN(V, HL_H) : CAP_IN(M, HL_C_H)), big ? &AF_V : &AF_M, d,
+                   col, lane);
+#else        
         cv_text_on(HL_NUM_X - b[0], y + (big ? CAP_IN(V, HL_H) : CAP_IN(M, HL_C_H)), big ? &AF_V : &AF_M, d,
                    ib ? T_INK : col, lane);
+#endif
         if (midi_mark(k))                             /* ((Skiff U4, F4) MIDI IN playing it: a mark after the number) */
+#ifndef JSM_BACK_TO_NORMAL
+            cv_rect(HL_NUM_X + (big ? 14 : 10), y + h / 2 - 2, 4, 4, T_THEME);
+#else        
             cv_rect(HL_NUM_X + (big ? 14 : 10), y + h / 2 - 2, 4, 4, ib ? T_INK : T_THEME);
+#endif
         sound_name(t, name);
         if (big) {
+#ifndef JSM_BACK_TO_NORMAL
+            cv_free_text(HL_NAME_X, y + HL_NAME_CY - AF_M_CAP_Y, &AF_M, name[0] ? name : "--", muted && !sel ? T_DIM : T_TEXT,
+                         lane, HL_STEP_X - 4 - HL_NAME_X);
+            cv_free_text(HL_NAME_X, y + HL_ENG_CY - AF_S_CAP_Y, &AF_S, ENGINES[t->eng_req % NENGINES]->name,
+                         T_MID, lane, HL_STEP_X - 4 - HL_NAME_X);
+#else            
             cv_free_text(HL_NAME_X, y + HL_NAME_CY - AF_M_CAP_Y, &AF_M, name[0] ? name : "--", muted && !sel ? T_DIM : ink,
                          lane, HL_STEP_X - 4 - HL_NAME_X);
             cv_free_text(HL_NAME_X, y + HL_ENG_CY - AF_S_CAP_Y, &AF_S, ENGINES[t->eng_req % NENGINES]->name,
                          ib ? T_INK : T_MID, lane, HL_STEP_X - 4 - HL_NAME_X);
+#endif
         } else {
             GFX_HOOK_ALIGN(0, y, 0, y + h, AL_V, "home compact lane name on its middle");
             cv_free_text(HL_NAME_X, y + CAP_IN(S, HL_C_H), &AF_S, name[0] ? name : "--", muted ? T_DIM : T_TEXT, lane,
@@ -156,7 +185,11 @@ static void graph_tracks(void)
                         qy = y + h / 2;
                     }
                 } else
+#ifndef JSM_BACK_TO_NORMAL
+                cv_rect(x - 2, y + 2, 1, h - 4, ux.neon ? T_ACCENT : sel ? col : ux.crypt ? CR_GOLD : T_TEXT);
+#else                
                 cv_rect(x - 2, y + 2, 1, h - 4, ux.neon ? T_ACCENT : sel ? T_INK : ux.crypt ? CR_GOLD : T_TEXT);
+#endif
                 if (sel && !ui_ph_line) {         /* ((Skiff #27) PLAYHEAD LINE: no torch, no car) */
                     tx = x - 7;
                     ty = y + (h - 24) / 2;
