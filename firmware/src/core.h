@@ -486,6 +486,10 @@ typedef struct track {
     int32_t lfo_fade;            /* Q15 ramp after note-on */
     uint32_t lfo_rnd;
     int16_t lfo_prev;            /* (1.3) the S&H value of the cycle before (mod.c SLEW glides from it to lfo_rnd's) */
+#ifndef JSM_BACK_TO_NORMAL
+    uint8_t lfo_cyc;             /* JSM the LFO's cycle, 0..N-1, while TRIG is a DIVN (mod.c DIVX; voice.c lfo_cycle): in the
+                                  * pad before lfo_t, track_t keeps its size */
+#endif
     uint32_t lfo_t;              /* (Skiff) control ticks since its retrigger (the graphs: ui_graph.c lfo_view_at) */
     /* keyboard / arp input: held notes in press order */
     uint8_t held[16];

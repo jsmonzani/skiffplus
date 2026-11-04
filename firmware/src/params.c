@@ -32,7 +32,12 @@ static const char *const N_DTYPE[] = {"SOFT", "HARD", "FOLD", "CRUSH", "FUZZ"}; 
 static const char *const N_ORDER[] = {"NOTE", "PLAYED"};
 /* (Skiff 1.3, from Felucca 1.2 / 1.5; append-only, as every list a project stores) */
 static const char *const N_LSYNC[] = {"OFF", "4BAR", "2BAR", "1/1", "1/2", "1/4", "1/8", "8T", "1/16", "16T", "1/32"};
+#ifndef JSM_BACK_TO_NORMAL
+/* JSM DIVN: as FREE for the LFO (the phase runs on); the divisor DIVX (mod.c) takes: 4 6 8 10 12 16 (mod.c DIVX_N) */
+static const char *const N_LTRIG[] = {"NOTE", "FREE", "DIV4", "DIV6", "DIV8", "DIV10", "DIV12", "DIV16"};
+#else
 static const char *const N_LTRIG[] = {"NOTE", "FREE"};
+#endif
 static const char *const N_LPOL[] = {"BI", "UNI"};
 static const char *const N_ITYPE[] = {"OFF", "SOFT", "HARD", "FOLD", "FUZZ", "CRUSH", "PHASR", "FLANG", "CHOR"};
 /* the INSERT's CRUSH: BITS 1..16 and RATE (the held sample's rate, fx.c INS_HOLD) over the range in 16 even parts */
@@ -75,7 +80,11 @@ static const char *const N_SLCR[] = {"OFF", "GATE", "STUT"};             /* SL_O
 static const char *const N_SLDIV[] = {"1/8", "1/16", "1/32", "8T", "16T", "32T"};   /* SL_DEN */
 /* modulation matrix (mod.c): sources, destinations (E1..E8 = P_E0..P_E7: shown with the engine's labels) */
 static const char *const N_MSRC[] = {"OFF", "LFO", "ENV", "VEL", "KEY", "RAND", "MODW", "AT", "EXPR", "ENV2",
+#ifndef JSM_BACK_TO_NORMAL
+                                    "S&H", "SLEW", "DIVX"};   /* ((phase 9) ENV2; (1.3) S&H SLEW; JSM DIVX) */
+#else
                                     "S&H", "SLEW"};   /* ((phase 9) ENV2; (1.3) S&H SLEW) */
+#endif
 static const char *const N_MDST[] = {"OFF", "PITCH", "CUT", "SHP", "AMP", "PAN", "DIST", "CHO", "DLY", "REV", "RATE",
                                      "VIB", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8",
                                      "DEPTH", "VEL", "TIME"};   /* ((1.3) the LFO's depth; at a note: VEL, TIME) */

@@ -13,7 +13,11 @@
  * declicks it); one of the part's own is restarted in place, as before. Extra UNISON
  * voices only start when there is room. */
 static uint32_t vage;                                   /* voice ages: one clock for every part */
+#ifndef JSM_BACK_TO_NORMAL
+static int32_t lfo_wave(const track_t *t, uint32_t ph)   /* (JSM const: mod.c DIVX reads it too) */
+#else
 static int32_t lfo_wave(track_t *t, uint32_t ph)
+#endif
 {
     switch (t->p[P_LWAVE]) {
     case 1:
@@ -45,6 +49,16 @@ static __attribute__((noinline)) uint32_t lfo_rand(track_t *t)   /* ((#9) noinli
     s ^= s << 5;
     return s;
 }
+
+#ifndef JSM_BACK_TO_NORMAL
+/* JSM a cycle of the LFO ended: DIVX's count (mod.c DIVX_N) goes on, 0..N-1 for the TRIG's DIVN; 0 while TRIG is NOTE or FREE.
+ * noinline, as lfo_rand: a cycle's end only */
+static __attribute__((noinline)) void lfo_cycle(track_t *t)
+{
+    uint32_t k = (uint32_t)t->p[P_LTRIG] - 2u;
+    t->lfo_cyc = k < NELEM(DIVX_N) ? (uint8_t)(((uint32_t)t->lfo_cyc + 1u) % DIVX_N[k]) : 0;
+}
+#endif
 
 /* (Skiff 1.3, #16, from Felucca 1.2) LFO 2's SYNC (params.c N_LSYNC): one cycle lasts the note value of the tempo
  * (fx.c div_samples: BPM, or the external clock's measured tempo while it runs), whatever RATE says (the matrix's RATE
@@ -83,6 +97,9 @@ static void track_lfo_end(track_t *t)
         t->lfo_wrap = 0;
         t->lfo_prev = (int16_t)mod_sh(t);               /* ((1.3) mod.c SLEW: it glides on from there) */
         t->lfo_rnd = lfo_rand(t);
+#ifndef JSM_BACK_TO_NORMAL
+        lfo_cycle(t);                                   /* (JSM) mod.c DIVX */
+#endif
     }
     t->lfo_val = lfo_wave(t, t->lfo_ph);
     if (t->p[P_LPOL])                                   /* (#16) UNI: 0..+1 (the depths reach as far, one way only) */
@@ -102,6 +119,9 @@ static void track_lfo_tick(track_t *t)                  /* (one core: the whole 
     if (t->lfo_ph < old) {
         t->lfo_prev = (int16_t)mod_sh(t);               /* ((1.3) mod.c SLEW: it glides on from there) */
         t->lfo_rnd = lfo_rand(t);
+#ifndef JSM_BACK_TO_NORMAL
+        lfo_cycle(t);                                   /* (JSM) mod.c DIVX */
+#endif
     }
     t->lfo_val = lfo_wave(t, t->lfo_ph);
     if (t->p[P_LPOL])                                   /* (#16) UNI: 0..+1 (the depths reach as far, one way only) */
@@ -408,8 +428,15 @@ static __attribute__((noinline)) void lfo_restart(track_t *t)
 {
     if (ENGINES[t->engine]->oneshot)
         return;
+#ifndef JSM_BACK_TO_NORMAL
+    if (!t->p[P_LTRIG]) {
+        t->lfo_ph = (uint32_t)t->p[P_LPHASE] << 25;
+        t->lfo_cyc = 0;                                 /* (JSM) NOTE: no DIVN, and its count starts again */
+    }
+#else
     if (!t->p[P_LTRIG])
         t->lfo_ph = (uint32_t)t->p[P_LPHASE] << 25;
+#endif
     t->lfo_fade = 0;
     t->lfo_t = 0;
 }

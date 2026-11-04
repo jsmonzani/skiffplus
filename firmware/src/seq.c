@@ -1233,8 +1233,15 @@ static void seq_start(void)
         t->rskip_n = 0;
         t->rh_n = 0;
         t->rat_left = 0;
+#ifndef JSM_BACK_TO_NORMAL
+        if (t->p[P_LTRIG] && t->p[P_LSYNC]) {      /* (#16) LFO 2 FREE + SYNC: in time with the bars from PLAY */
+            t->lfo_ph = (uint32_t)t->p[P_LPHASE] << 25;
+            t->lfo_cyc = 0;                        /* (JSM) DIVX counts its cycles from here */
+        }
+#else
         if (t->p[P_LTRIG] && t->p[P_LSYNC])        /* (#16) LFO 2 FREE + SYNC: in time with the bars from PLAY */
             t->lfo_ph = (uint32_t)t->p[P_LPHASE] << 25;
+#endif
     }
     song.tick = 0;
     beat_pos = 0; beat_n = 0;                      /* the ARP LED's beat from the top too */

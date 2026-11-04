@@ -16,6 +16,9 @@
  *         POL or DEPTH; bipolar, 0 until the LFO's first cycle ends. It follows RATE and SYNC
  *   SLEW  (1.3) S&H slewed: it glides linearly from the cycle before's value to this cycle's over the cycle (a smooth
  *         random line, one cycle behind S&H); bipolar. Both per track (one value for every voice)
+ *   DIVX  (JSM) the track LFO, slower: its WAVE at 1/4 1/6 1/8 1/10 1/12 or 1/16 of its pace (it follows RATE and SYNC),
+ *         the divisor LFO 2's TRIG says (DIV4 .. DIV16; NOTE, FREE: no divisor, 0); without FADE, POL or DEPTH; bipolar,
+ *         per track. voice.c lfo_cycle counts the LFO's cycles (track_t lfo_cyc) that make the slow one's phase
  * Destinations:
  *   per voice (vmod_t, like the fixed routings):
  *     PITCH  AMT 63 at a full source = +-11.8 semitones (as LFO DEST PIT at 63; linear here, LFO DEST PIT squared
@@ -46,8 +49,13 @@
  * presets read and write t->p from the main loop, which the ISR preempts; TIMER5 only fills the MIDI rings),
  * and the engines read t->p as before. An engine reads its parameters in note_on (events_block) unmodulated.
  * Nothing active (every slot with SRC, DST or AMT at 0): no work, and the sound is bit-identical. */
+#ifndef JSM_BACK_TO_NORMAL
+enum { MS_OFF, MS_LFO, MS_ENV, MS_VEL, MS_KEY, MS_RAND, MS_MODW, MS_AT, MS_EXPR, MS_ENV2, MS_SH, MS_SLEW, MS_DIVX,
+       MS_N };   /* (append only) */
+#else
 enum { MS_OFF, MS_LFO, MS_ENV, MS_VEL, MS_KEY, MS_RAND, MS_MODW, MS_AT, MS_EXPR, MS_ENV2, MS_SH, MS_SLEW,
        MS_N };   /* (append only) */
+#endif
 enum { MD_OFF, MD_PITCH, MD_CUT, MD_SHP, MD_AMP, MD_PAN, MD_DIST, MD_CHO, MD_DLY, MD_REV, MD_RATE, MD_VIB, MD_E1,
        MD_DEPTH = MD_E1 + 8, MD_VEL, MD_TIME, MD_N };   /* (append only: the stored values keep their meaning) */
 _Static_assert(NELEM(N_MSRC) == MS_N && NELEM(N_MDST) == MD_N, "N_MSRC / N_MDST == MS_* / MD_*");
@@ -102,6 +110,22 @@ static int32_t mod_key(uint32_t note) { return clamp(((int32_t)note - 60) * 512,
 /* (1.3) S&H: the value of the LFO's cycle (voice.c lfo_rand; 0 before its first one ends), bipolar */
 static int32_t mod_sh(const track_t *t) { return t->lfo_rnd ? (int32_t)(t->lfo_rnd >> 16) - 32768 : 0; }
 
+#ifndef JSM_BACK_TO_NORMAL
+/* JSM DIVX: the LFO's WAVE (voice.c lfo_wave) at 1/N of its pace, N from LFO 2's TRIG (DIVX_N, TRIG 2 on: DIV4 ..): its phase
+ * is (the cycle, 0..N-1, voice.c lfo_cycle counts it) + the LFO's phase, over N: 32 bits, N x floor(2^32 - 1 / N) <= 2^32 - 1.
+ * NOTE, FREE: no divisor, 0. Bipolar, without the LFO's FADE, POL and DEPTH, as S&H */
+static const uint8_t DIVX_N[6] = {4, 6, 8, 10, 12, 16};
+static int32_t lfo_wave(const track_t *t, uint32_t ph);   /* (voice.c) */
+static int32_t mod_divx(const track_t *t)
+{
+    uint32_t k = (uint32_t)t->p[P_LTRIG] - 2u, n;
+    if (k >= NELEM(DIVX_N))
+        return 0;
+    n = DIVX_N[k];
+    return lfo_wave(t, t->lfo_ph / n + ((uint32_t)t->lfo_cyc % n) * (0xFFFFFFFFu / n));
+}
+#endif
+
 /* source s of the track: the per-track ones, the per-voice ones of the latest note-on */
 static int32_t mod_tsrc(const track_t *t, uint32_t s, int32_t lfo)
 {
@@ -110,6 +134,10 @@ static int32_t mod_tsrc(const track_t *t, uint32_t s, int32_t lfo)
         return mod_sh(t);
     case MS_SLEW:                                       /* (1.3) the cycle before's value .. this one's, by the phase */
         return t->lfo_prev + (((mod_sh(t) - t->lfo_prev) * (int32_t)(t->lfo_ph >> 17)) >> 15);
+#ifndef JSM_BACK_TO_NORMAL
+    case MS_DIVX:                                       /* (JSM) the LFO at 1/4 .. 1/16 of its pace */
+        return mod_divx(t);
+#endif
     case MS_LFO:
         return lfo;
     case MS_ENV:
