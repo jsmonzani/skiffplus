@@ -2269,19 +2269,9 @@ static void mix_strip(uint32_t c, uint32_t sel, uint32_t st, uint32_t mute, uint
     char d[2] = {(char)('1' + c), 0}, nm[8], v[8];
     cv_begin(MS_W, (uint32_t)h, T_BG);
     // JSM I'm removing here all the crap linked to themes
-    if (ux.crypt && !sel)                            /* (Skiff C3) CRYPT: the strips stone */
-        cr_stone(0, 0, MS_W, h, g);
-    else if (ux.neon && sel) {                       /* (Skiff N3) NEON: the selected one its colour into violet, the */
-        uint16_t st[2] = {col, ux_mix(col, NE_VIOLET, 75)};   /* others glass */
-        ne_vgrad(0, 0, MS_W, h, st, 2);
-    } else if (ux.neon)
-        ne_glass(0, 0, MS_W, h, g);
-    else if (ux.quark) {                             /* (Skiff Q3) QUARK: the selected one in its colour's corners */
-        cv_rect(0, 0, MS_W, h, g);
-        if (sel)
-            qk_corners(0, 0, MS_W, h, col, 6);
-    } else
-        cv_rect(0, 0, MS_W, h, g);
+    // also changed the ib ? tests as I don't want specific colors for the selected track, except on the header
+    cv_rect(0, 0, MS_W, h, T_BG); 
+    cv_rect(0, 0, MS_W, 27, g); // only color the top where the digit is
     GFX_HOOK_ALIGN(0, 3, 0, 27, AL_V, "mixer strip number on its line");
     cv_text_on(4, 3 + CAP_IN(V, 24), &AF_V, d, nc, g);
     if (st == 1u)                                    /* REC (recording) / armed, stopped / muted */
@@ -2297,64 +2287,28 @@ static void mix_strip(uint32_t c, uint32_t sel, uint32_t st, uint32_t mute, uint
     for (i = 0; b[i] && b[i] != ' ' && i < 7; i++)    /* the sound's first word */
         nm[i] = b[i];
     nm[i] = 0;
-    cv_free_text(4, 29, &AF_S, nm, ib ? T_INK : mute ? T_DIM : T_TEXT, g, MS_W - 6);
+    cv_free_text(4, 29, &AF_S, nm, mute ? T_DIM : T_TEXT, T_BG, MS_W - 6);
     if (large) {                                     /* LARGE: LEVEL a gauge, the meter under it */
         int32_t gw = MS_W - 8, fx = (int32_t)lvl * gw / 127;
         cv_rect(4, 46, gw, 3, line);
         cv_rect(4, 46, fx < 2 ? 2 : fx, 3, vc);
         cv_rect(4, 53, gw, 3, line);
         if (m)
-            cv_rect(4, 53, m * gw / (TS_MH - 2), 3, ib ? T_INK : T_MID);
+            cv_rect(4, 53, m * gw / (TS_MH - 2), 3,  T_MID);
         cv_blit((uint32_t)MS_X(c), LG_Y_GRAPH);
         return;
     }
     {   /* LEVEL: the fader from its foot, its cap; the meter beside it */
         int32_t fh = (int32_t)lvl * (MS_FY1 - MS_FY0) / 127, mh = m * (MS_FY1 - MS_FY0) / (TS_MH - 2);
-        if (ux.quark && mute) {                       /* (Skiff Q3) QUARK: muted, dark matter: there, nothing shows */
-            qk_dotframe(10, MS_FY0, 16, MS_FY1 - MS_FY0, T_DIM);
-            GFX_HOOK_ALIGN(0, 0, MS_W, 0, AL_H, "mixer strip value centred across");
-            cv_text_in(0, MS_FY0 + 20, MS_W, &AF_S, "DARK", T_DIM, g);
-        } else if (ux.quark) {                        /* (Skiff Q3) QUARK: a calorimeter tower, its cells the energy
-                                                       * deposited (the level), a gold cap; the meter beside it */
-            int32_t n = 12, lit = (fh * n + 25) / (MS_FY1 - MS_FY0), s;
-            for (s = 0; s < n; s++)
-                cv_rect(10, MS_FY1 - (s + 1) * 4, 14, 3, s < lit ? ux_mix(col, T_TEXT, s * 50 / n) : ux_mix(T_SURF, T_TEXT, 10));
-            cv_rect(8, MS_FY1 - lit * 4 - 2, 18, 1, hot == 1u ? T_TEXT : T_ACCENT);
-            if (mh)
-                cv_rect(27, MS_FY1 - mh, 2, mh, T_THEME);
-        } else if (ux.neon && mute) {                        /* (Skiff N3) NEON: muted, no signal (selected: dark snow on its
-                                                       * band) */
-            ne_snow(3, MS_FY0, MS_W - 6, MS_FY1 - MS_FY0, c * 7u + 3u, sel ? col : T_BG, ib ? T_INK : T_MID);
-            GFX_HOOK_ALIGN(0, 0, MS_W, 0, AL_H, "mixer strip value centred across");
-            cv_text_in(0, MS_FY0 + 22, MS_W, &AF_S, "MUTE", ib ? T_INK : T_THEME, g);
-        } else if (ux.neon) {                         /* (Skiff N3) NEON: VU columns, LEVEL (its cap white; turned: the
-                                                       * accent) and the meter */
-            ne_vu(8, MS_FY1, 9, MS_FY1 - MS_FY0, fh, ib ? T_INK : 0, sel ? line : ux_mix(T_SURF, T_TEXT, 10),
-                  sel ? 0 : hot == 1u ? T_ACCENT : T_TEXT);
-            ne_vu(19, MS_FY1, 9, MS_FY1 - MS_FY0, mh, ib ? T_INK : 0, sel ? line : ux_mix(T_SURF, T_TEXT, 10), 0);
-        } else
-        cv_rect(13, MS_FY0, 6, MS_FY1 - MS_FY0, line);
-        if (ux.neon || ux.quark)
-            ;
-        else if (ux.crypt && !sel) {                  /* (Skiff) CRYPT: a torch as tall as the level (muted: out) */
-            cr_meter(13, MS_FY1, fh, mute);
-        } else {
+        cv_rect(13-4, MS_FY0, 6, MS_FY1 - MS_FY0, T_RAISE);
         if (fh)
-            cv_rect(13, MS_FY1 - fh, 6, fh, vc);
-        cv_rect(10, MS_FY1 - fh - 1, 12, 2, ib ? T_INK : T_TEXT);
-        }
-        if (!ux.neon && !ux.quark) {
-#ifndef JSM_BACK_TO_NORMAL
+            cv_rect(13-4, MS_FY1 - fh, 6, fh, T_DIM);
+        cv_rect(10-4, MS_FY1 - fh - 2, 12, 4,  T_TEXT);
         // JSM larger readable meter
-        cv_rect(23, MS_FY0, 8, MS_FY1 - MS_FY0, line);
+        cv_rect(23, MS_FY0, 8, MS_FY1 - MS_FY0, T_RAISE);
         if (mh)
             cv_rect(23, MS_FY1 - mh, 8, mh, T_TEXT);
-#else
-        cv_rect(23, MS_FY0, 2, MS_FY1 - MS_FY0, line);
-        if (mh)
-            cv_rect(23, MS_FY1 - mh, 2, mh, ib ? T_INK : T_MID);
-#endif
-        }
+
     }
     if (lvl) {                                       /* its dB (OFF at 0), the PAN */
         int32_t dd = LEVEL_DB_X10(lvl);
@@ -2363,10 +2317,10 @@ static void mix_strip(uint32_t c, uint32_t sel, uint32_t st, uint32_t mute, uint
         str_cpy(v, "OFF", sizeof v);
     }
     GFX_HOOK_ALIGN(0, 0, MS_W, 0, AL_H, "mixer strip value centred across");
-    cv_text_in(0, 106, MS_W, &AF_M, v, ib ? T_INK : hot == 1u ? T_ACCENT : lvl && !mute ? T_TEXT : T_DIM, g);
+    cv_text_in(0, 106, MS_W, &AF_M, v,  hot == 1u ? T_ACCENT : lvl && !mute ? T_TEXT : T_DIM, T_BG);
     pan_txt(v, pan);
     GFX_HOOK_ALIGN(0, 0, MS_W, 0, AL_H, "mixer strip value centred across");
-    cv_text_in(0, 123, MS_W, &AF_S, v, ib ? T_INK : hot == 2u ? T_ACCENT : T_MID, g);
+    cv_text_in(0, 123, MS_W, &AF_S, v, hot == 2u ? T_ACCENT : T_MID, T_BG);
     cv_blit((uint32_t)MS_X(c), Y_GRAPH);
 }
 static void draw_tracks(void)
