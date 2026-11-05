@@ -207,6 +207,10 @@ static void track_dist(track_t *t, int32_t *b, uint32_t n)
  * get quieter instead of crushed. */
 #define LIM_T 18000
 static int32_t lim_env = LIM_T;
+#ifndef JSM_BACK_TO_NORMAL
+    static volatile uint8_t master_hot;  /* JSM remember when limiter is active */
+#endif
+
 /* MENU > USB LEVEL FIXED (for #42: record over USB with the speaker turned down): the mix goes to master_out at the
  * full MASTER level, USB audio takes that (audio.c uac_tap), and only then does MASTER scale what the DAC gets
  * (usb_fixed_dac). MASTER (0, the default): MASTER before master_out, as always (USB follows the knob) */
@@ -1282,6 +1286,9 @@ static void mix_block(int32_t *out, uint32_t n)
         rev_side_mix(mix_l, mix_r, n);                  /* HALL: stereo */
     if (perf) {
         AUDIO_FAR(perf_master)(out, n);
+#ifndef JSM_BACK_TO_NORMAL
+        master_hot = (uint8_t)(lim_env > LIM_T);        /* JSM remember when limiter is active */
+#endif
         return;
     }
     for (i = 0; i < n; i++) {
@@ -1291,4 +1298,7 @@ static void mix_block(int32_t *out, uint32_t n)
         out[2u * i] = l;
         out[2u * i + 1u] = r;
     }
+#ifndef JSM_BACK_TO_NORMAL
+    master_hot = (uint8_t)(lim_env > LIM_T);
+#endif
 }

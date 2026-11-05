@@ -8,6 +8,9 @@ Set Large in the settings, stay with SKIFF theme and enjoy the new look.
 - Parameters presented as 4 lines with large font
 - Font reverted back to Inter
 - Larger display of song steps, 8 at a time instead of 16 crammed on one screen
+- Better home page: the steps are readable on the selected track
+- GLO (Mix): the volume meter is readable on the selected track
+- Limiter warning: a red bar on top shows that the limiter is active
 
 ### Extra
 - PRESETS on HOME changes the velocity

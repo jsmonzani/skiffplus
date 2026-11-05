@@ -260,7 +260,12 @@ static uint32_t span_face(uint32_t c, const card_span_t *sp, uint32_t (*face)(co
 }
 #include "ui_blocks.c"                                 /* Skiff: STYLE BLOCKS' header and card (draw_head_blocks, draw_column_blocks) */
 
-static void draw_head(void) { draw_head_blocks(); }   /* (U2: BLOCKS, the only look: ui_blocks.c) */
+static void draw_head(void) { draw_head_blocks(); 
+#ifndef JSM_BACK_TO_NORMAL
+    // JSM a red bar on top shows that the limiter is active
+    lcd_fill(0, 0, 240, 2, master_hot ? T_REC : 0);  /* 0 = noir RGB565 */
+#endif
+}   /* (U2: BLOCKS, the only look: ui_blocks.c) */
 /* full redraw: the strips (header, cards, panel, footer) cover the rest; only the BG between them is filled */
 static void draw_frame(void)
 {
