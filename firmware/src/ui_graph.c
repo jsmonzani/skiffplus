@@ -2268,6 +2268,7 @@ static void mix_strip(uint32_t c, uint32_t sel, uint32_t st, uint32_t mute, uint
     int32_t h = (int32_t)graph_h(), m = ts.meter[c], i;
     char d[2] = {(char)('1' + c), 0}, nm[8], v[8];
     cv_begin(MS_W, (uint32_t)h, T_BG);
+    // JSM I'm removing here all the crap linked to themes
     if (ux.crypt && !sel)                            /* (Skiff C3) CRYPT: the strips stone */
         cr_stone(0, 0, MS_W, h, g);
     else if (ux.neon && sel) {                       /* (Skiff N3) NEON: the selected one its colour into violet, the */
@@ -2343,9 +2344,16 @@ static void mix_strip(uint32_t c, uint32_t sel, uint32_t st, uint32_t mute, uint
         cv_rect(10, MS_FY1 - fh - 1, 12, 2, ib ? T_INK : T_TEXT);
         }
         if (!ux.neon && !ux.quark) {
+#ifndef JSM_BACK_TO_NORMAL
+        // JSM larger readable meter
+        cv_rect(23, MS_FY0, 8, MS_FY1 - MS_FY0, line);
+        if (mh)
+            cv_rect(23, MS_FY1 - mh, 8, mh, T_TEXT);
+#else
         cv_rect(23, MS_FY0, 2, MS_FY1 - MS_FY0, line);
         if (mh)
             cv_rect(23, MS_FY1 - mh, 2, mh, ib ? T_INK : T_MID);
+#endif
         }
     }
     if (lvl) {                                       /* its dB (OFF at 0), the PAN */
