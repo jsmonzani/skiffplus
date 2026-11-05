@@ -93,9 +93,13 @@ static void graph_tracks(void)
         for (i = 0; i < n; i++) {                     /* (past the track's length: nothing) */
             const step_t *st = &s[first + i];
             int32_t x = hl_cell_x(i), cy = y + (h - ch) / 2;
-            cv_rect(x, cy, HL_CELL_W, ch, off);
-            if (step_tie(st))               /* a tie: the note held on, half the cell */
-                cv_rect(x, cy + ch / 4, HL_CELL_W, ch / 2, on);
+            if (step_on(st) || st->hit) {
+                cv_rect(x, cy, HL_CELL_W, ch, on);
+            } else {
+                cv_rect(x, cy, HL_CELL_W, ch, off);
+                if (step_tie(st))               /* a tie: the note held on, half the cell */
+                    cv_rect(x, cy + ch / 4, HL_CELL_W, ch / 2, on);
+            }
             if (song.playing && i == play && t->seq_idx / 16u * 16u == first) {   /* the step playing: a line before it */
                 cv_rect(x - 2, y + 2, 1, h - 4, T_TEXT);
                 if (sel && !ui_ph_line) {         /* ((Skiff #27) PLAYHEAD LINE: no torch, no car) */
