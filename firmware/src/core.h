@@ -124,6 +124,9 @@ enum {                          /* per-track parameters */
     P_ESYNC,                                   /* (1.3, from Felucca 1.5) ENV SYNC: ATK DEC REL as note values of the tempo */
     P_LPAN0, P_LPAN1, P_LPAN2, P_LPAN3, P_LPAN4, P_LPAN5, P_LPAN6, P_LPAN7,   /* (2.0, #36) the drum lanes' PAN (voice.c
                                                 * lpan_render): stored ids 135..142, after the engine values' (sid_p) */
+#ifndef JSM_BACK_TO_NORMAL
+    P_TFLT,                                    /* JSM FX > FILTER: 64 = neutral, LP / HP */
+#endif                                                
     P_E0, P_E1, P_E2, P_E3, P_E4, P_E5, P_E6, P_E7,
     P_COUNT
 };
@@ -178,7 +181,12 @@ static void params_by_count(int16_t *out, const int16_t *in, uint32_t np, const 
 #define SID_COUNT ((uint32_t)P_COUNT)          /* the SIDs this firmware knows: 0 .. SID_COUNT - 1 */
 #define GSID_COUNT ((uint32_t)G_COUNT)
 #define SID_E0 127u                            /* the engine values' first SID (P_E0 before #36): frozen */
+#ifndef JSM_BACK_TO_NORMAL
+_Static_assert(P_LPAN0 == SID_E0 && P_COUNT == P_E0 + 8u, "sid_p: the lane pans and those after them, then E0..E7");
+#else
 _Static_assert(P_LPAN0 == SID_E0 && P_E0 == SID_E0 + 8u && P_COUNT == P_E0 + 8u, "sid_p: the lane pans, then E0..E7");
+#endif
+
 static uint32_t sid_p(uint32_t sid)            /* P_COUNT: not one of ours */
 {
     return sid < SID_E0 ? sid : sid < SID_E0 + 8u ? sid + 8u : sid < SID_COUNT ? sid - 8u : P_COUNT;

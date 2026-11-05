@@ -190,6 +190,9 @@ static const param_desc_t TP[P_COUNT] = {
     [P_LTRIG] = PE("TRIG", N_LTRIG, 0),            /* .. NOTE: from its PHASE at each note, as before */
     [P_LPOL] = PE("POLARITY", N_LPOL, 0),          /* .. BI: around the value, as before */
     [P_SPRD] = PD("SPREAD", F_PCT, 0, 127, 0),     /* (1.3) 0: every voice on PAN, as before */
+#ifndef JSM_BACK_TO_NORMAL
+    [P_TFLT] = PD("T.FILTER", F_INT, 0, 127, 64),
+#endif
     [P_ITYPE] = PE("TYPE", N_ITYPE, 0),            /* (1.3) the INSERT: OFF as before */
     [P_IA] = PD("A", F_PCT, 0, 127, 64),
     [P_IB] = PD("B", F_PCT, 0, 127, 96),
@@ -366,6 +369,19 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
 {
     *unit = "";
     fmt_named = d->fmt == F_ENUM;
+#ifndef JSM_BACK_TO_NORMAL
+    if (str_eq(d->label, "T.FILTER")) {
+        int32_t a = v - 64;
+        if (!a) {
+            str_cpy(val, "-", 6);
+        } else {
+            val[0] = a < 0 ? 'L' : 'H';
+            val[1] = 'P';
+            fmt_int(val + 2, a < 0 ? -a : a);
+        }
+        return;
+    }
+#endif    
     switch (d->fmt) {
     case F_PCT:                                     /* a 0..100 range (SWG) is its value, others a share of 127 */
         fmt_int(val, d->max == 100 ? v : (v * 100 + 63) / 127);
@@ -556,8 +572,12 @@ static const page_t PAGES[] = {
     {"OP4 ENV", FAM_EDIT, SC_TRACK, GR_ADSR, {P_FM4_ATK, P_FM4_DEC, P_FM4_SUS, P_FM4_REL}},
     {"OP LEVEL", FAM_EDIT, SC_TRACK, GR_NONE, {P_FM1_LEVEL, P_FM2_LEVEL, P_FM3_LEVEL, P_FM4_LEVEL}},
     {"VOICE", FAM_EDIT, SC_TRACK, GR_VOICE, {P_VOICE, P_GLIDE, P_GLMODE, P_PRIO}},
+#ifndef JSM_BACK_TO_NORMAL
+    {"VOICE 2", FAM_EDIT, SC_TRACK, GR_VOICE2, {P_ALLOC, P_DETUNE, P_SPRD, P_TFLT}},
+#else
     {"VOICE 2", FAM_EDIT, SC_TRACK, GR_VOICE2, {P_ALLOC, P_DETUNE, P_SPRD, 0xFF}},   /* ((U3, R4) PAN MUTE: MIXER's;
                                                                                      * (1.3) SPREAD) */
+#endif
     {"MIXER", FAM_TRK, SC_TRK, GR_TRK, {0, 1, 2, 3}},   /* GLO button; LEVEL PAN REV MUTE */
     {"DELAY", FAM_GLO, SC_GLOBAL, GR_DELAY, {G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX}},   /* ((U3, N4) the buses: FX's before) */
     {"REVERB", FAM_GLO, SC_GLOBAL, GR_REVERB, {G_RTYPE, G_RSIZE, G_RDAMP, 0xFF}},   /* TYPE: ROOM / SPRING / HALL */
