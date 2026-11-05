@@ -25,7 +25,12 @@ static uint32_t tl_lane(const step_t *s, uint32_t l) { return (step_lanes(s) >> 
 /* place p's action is there for this track (the lane row and BEAT: DRUM only) */
 static int tl_cell(const track_t *t, uint32_t p)
 {
+#ifndef JSM_BACK_TO_NORMAL
+    // allow beat even not on drum track and overide it with "tight"
+    return p < TL_N && (p <= TL_BEAT || p == TL_EUCLID || p >= TL_DOUBLE || drum_track(t));
+#else
     return p < TL_N && (p < TL_BEAT || p == TL_EUCLID || p >= TL_DOUBLE || drum_track(t));
+#endif
 }
 
 /* the undo copy of t as it is now (ui.c load_begin, but the automation is copied and stays): one action, named */
@@ -720,7 +725,13 @@ static const char *tl_do(track_t *t, uint32_t p, uint32_t l)
             return 0;
         }
     }
+#ifndef JSM_BACK_TO_NORMAL
+    // allow beat even not on drum track and overide it with "tight"
+    tl_undo_take(t, p == TL_BEAT ? (drum ? "BEAT" : "TIGHT") : TL_UNDO[p % TL_N]);
+#else
     tl_undo_take(t, TL_UNDO[p % TL_N]);
+#endif
+
     switch (p) {
     case TL_CLEAR:
         for (i = 0; i < len; i++)
@@ -755,14 +766,21 @@ static const char *tl_do(track_t *t, uint32_t p, uint32_t l)
         fmt_int(b + str_len(b), (int32_t)(p == TL_DOUBLE ? tl_double(t, len) : tl_half(t, len)));
         str_cpy(b + str_len(b), " STEPS", sizeof b - str_len(b));
         return b;                                       /* (nothing emptied inside the new LEN: no unlock) */
-    case TL_BEAT:                                       /* four on the floor, the backbeat, 8th hats */
-        for (i = 0; i < len; i++) {
-            step_clear(&t->step[i]);
-            if (i % 4u == 0u) grid_hit(t, i, DV_KICK, 1);
-            if (i % 8u == 4u) grid_hit(t, i, DV_SNARE, 1);
-            if (i % 2u == 0u) grid_hit(t, i, DV_HATC, 1);
+    case TL_BEAT:
+        if (drum) { // JSM special double function
+            for (i = 0; i < len; i++) {
+                step_clear(&t->step[i]);
+                if (i % 4u == 0u) grid_hit(t, i, DV_KICK, 1);
+                if (i % 8u == 4u) grid_hit(t, i, DV_SNARE, 1);
+                if (i % 2u == 0u) grid_hit(t, i, DV_HATC, 1);
+            }
+            msg = "BASIC BEAT";
+        } else { // JSM
+            for (i = 0; i < len; i++)
+                if (t->step[i].time == ST_NOTE && t->step[i].n)
+                    t->step[i].nudge = (int8_t)clamp(t->step[i].nudge, -4, 4);
+            msg = "NUDGES TIGHT";
         }
-        msg = "BASIC BEAT";
         break;
     default:                                            /* the lane's */
         str_cpy(b, drum_lane_name(t, l), sizeof b);

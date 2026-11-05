@@ -1182,16 +1182,22 @@ static void layer_seq(void)
     char n[3] = {0, 0, 0}, nm[8];
     if (eu.on)
         layer_euclid();
-    for (p = 0; p < TL_DOUBLE && !eu.on; p++) {
+    for (p = 0; p < TL_DOUBLE && !eu.on; p++) {  // JSM special case drum/tight
+        uint32_t icon;
         if (!tl_cell(TSEL, p))
             continue;
         n[0] = W_NOTE[p];
+        icon = TL_ICON[p];
         str_cpy(nm, TL_NAME[p], sizeof nm);
-        if (p >= TL_LCLR) {                             /* the lane's: "CLR BD" */
+        if (p == TL_BEAT && !drum) {
+            str_cpy(nm, "TIGHT", sizeof nm);
+            icon = ICON_TIME;
+        }
+        if (p >= TL_LCLR) {
             str_cpy(nm + str_len(nm), " ", 2);
             str_cpy(nm + str_len(nm), drum_lane_abbr(TSEL, ui.lane), sizeof nm - str_len(nm));
         }
-        lcell(LC_X(p % 4u), 4 + 32 * (int32_t)(p / 4u), 28, n, TL_ICON[p], nm, st);
+        lcell(LC_X(p % 4u), 4 + 32 * (int32_t)(p / 4u), 28, n, icon, nm, st); // JSM
     }
     for (p = 0; drum && p < NLANE; p++) {               /* the lanes (black keys 1..8): 8 cells of 18 px, 2 px apart */
         int32_t x = 6 + 20 * (int32_t)p;
