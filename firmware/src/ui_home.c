@@ -85,8 +85,8 @@ static void graph_tracks(void)
         } else
 #ifndef JSM_BACK_TO_NORMAL
             cv_rect(3, y, 234, h, T_BG);
-            if (big)
-                cv_rect(3, y, 6, h, col);
+            if (big) // color background rectangle only behind the track number
+                cv_rect(3, y, 18, h, col);
 #else        
             cv_rect(3, y, 234, h, lane);
 #endif
@@ -103,8 +103,9 @@ static void graph_tracks(void)
         text_ink(big ? &AF_V : &AF_M, d, b);             /* the number itself: the colour on SURF, INK on the band */
         GFX_HOOK_ALIGN(0, y, 0, y + h, AL_V, "home lane number on its middle");
 #ifndef JSM_BACK_TO_NORMAL
-        cv_text_on(HL_NUM_X - b[0], y + (big ? CAP_IN(V, HL_H) : CAP_IN(M, HL_C_H)), big ? &AF_V : &AF_M, d,
-                   col, lane);
+        // Big track number
+        cv_text_on(HL_NUM_X - b[0]-4, y + (big ? CAP_IN(V, HL_H) : CAP_IN(M, HL_C_H)), big ? &AF_V : &AF_M, d,
+                   big ? T_BG : col, big ? col : lane);
 #else        
         cv_text_on(HL_NUM_X - b[0], y + (big ? CAP_IN(V, HL_H) : CAP_IN(M, HL_C_H)), big ? &AF_V : &AF_M, d,
                    ib ? T_INK : col, lane);
