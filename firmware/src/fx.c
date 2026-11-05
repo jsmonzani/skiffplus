@@ -832,6 +832,53 @@ static int32_t ins_lpk(int32_t c)
     uint32_t g = SVF_G[clamp(c, 0, 127)];
     return (int32_t)((g << 16) / (4096u + g));
 }
+#ifndef JSM_BACK_TO_NORMAL
+typedef struct {
+    int32_t pos;                       /* position lissée : 0..127, 64 neutre */
+    int32_t lp[3];                     /* état par signal : mono/spread/lane-pan */
+    uint8_t init;
+} tflt_t;
+
+static tflt_t tflt[NTRK] __attribute__((section(".pool")));
+
+/* JSM Filtre DJ par piste. d et e sont optionnels pour les signaux latéraux de SPREAD / lane PAN. */
+static __attribute__((noinline)) void track_tflt(track_t *t, int32_t *b, int32_t *d, int32_t *e, uint32_t n)
+{
+    tflt_t *s = &tflt[(uint32_t)(t - trk) % NTRK];
+    int32_t target = clamp(t->p[P_TFLT], 0, 127), cutoff, k;
+    int32_t *x[3] = {b, d, e};
+    uint32_t i, c;
+
+    if (!s->init) {
+        s->pos = 64;
+        s->init = 1;
+    }
+    if (target == 64 && s->pos == 64)
+        return;                         /* neutre : aucun traitement par échantillon */
+
+    s->pos += clamp(target - s->pos, -4, 4);   /* glide du contrôle */
+    if (s->pos == 64) {
+        s->lp[0] = s->lp[1] = s->lp[2] = 0;
+        return;
+    }
+
+    cutoff = s->pos < 64 ? 127 - (64 - s->pos) * 2 : (s->pos - 64) * 2;
+    k = ins_lpk(cutoff);
+
+    for (i = 0; i < n; i++) {
+        for (c = 0; c < 3u; c++) {
+            int32_t in, low;
+            if (!x[c])
+                continue;
+            in = x[c][i];
+            s->lp[c] += mulq16(in - s->lp[c], (uint32_t)k);
+            low = s->lp[c];
+            x[c][i] = s->pos < 64 ? low : in - low;   /* LP ou HP */
+        }
+    }
+}
+#endif
+
 static inline uint32_t ins_bits_sh(int32_t a) { return 15u - (uint32_t)(clamp(a, 0, 127) >> 3); }   /* BITS 1..16 */
 
 /* SOFT .. FUZZ: low cut -> DRIVE -> shape -> TONE -> LEVEL -> DC blocker; CRUSH: held sample -> bits -> LPF */
@@ -1010,6 +1057,9 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
     if (!e)
         for (i = 0; i < n; i++)
             d[i] = (d[i] << 1) - b[i];                  /* left - right */
+#ifndef JSM_BACK_TO_NORMAL
+        track_tflt(t, b, d, e, n); // JSM track filter
+#endif
     track_dist(t, b, n);
     if (t->p[P_ITYPE] | t->ins_run)
         track_insert(t, b, n);                          /* (the mono sum, as DRIVE) */
@@ -1139,6 +1189,9 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
         int32_t c = t->p[P_CHOR] * 258, d = t->p[P_DLY] * 258, r = t->p[P_REV] * 258, pk = t->peak;
         int32_t xmax = c > d ? c : d;
         xmax = 0x7FFFFFFF / ((xmax > r ? xmax : r) | 1);   /* sends: loud chords at a high LEVEL */
+#ifndef JSM_BACK_TO_NORMAL
+        track_tflt(t, b, 0, 0, n); // JSM track filter
+#endif
         track_dist(t, b, n);
         if (t->p[P_ITYPE] | t->ins_run)
             track_insert(t, b, n);                      /* ((1.3) the INSERT: off, nothing) */
