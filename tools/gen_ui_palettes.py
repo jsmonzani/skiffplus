@@ -50,8 +50,17 @@ PALETTES = [
 SKIFF, CRYPT, NEON, QUARK = "SKIFF", "CRYPT", "NEON", "QUARK"
 # the six tracks' colours (src/gfx.c T_TRK; (Skiff phase 6) T5, T6 too): a palette not named here gives every track
 # its THEME. Told apart by lightness as well as hue, and always drawn with the track's number (never the colour alone)
-TRACKS = {"SKIFF": [(255, 90, 54), (34, 195, 180), (255, 191, 0), (149, 128, 255),    # vermilion teal amber violet
-                    (255, 111, 174), (163, 230, 53)],                                 # pink lime
+TRACKS = {#"SKIFF": [(255, 90, 54), (34, 195, 180), (255, 191, 0), (149, 128, 255),    # vermilion teal amber violet
+          #          (255, 111, 174), (163, 230, 53)],                                 # pink lime
+          #JSM pastel
+          "SKIFF": [
+            (205, 180, 219),
+            (255, 200, 221),
+            (255, 175, 204),
+            (189, 224, 254),
+            (162, 210, 255),
+            (254, 217, 183)
+          ],
           "CRYPT": [(236, 110, 50), (242, 182, 60), (222, 206, 166), (232, 88, 66),   # ember gold bone blood
                     (172, 172, 92), (204, 134, 176)],                                 # olive mauve
           "NEON": [(255, 64, 176), (48, 224, 255), (255, 222, 90), (255, 128, 56),    # pink cyan yellow orange

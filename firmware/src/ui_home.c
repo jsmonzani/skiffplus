@@ -54,7 +54,7 @@ static void graph_tracks(void)
 {
     uint32_t k, i, n;
     int32_t tx = -1, ty = 0;                          /* (Skiff C3) CRYPT: the torch's place (the selected track's playhead) */
-    int32_t qx = -1, qy = 0;                          /* (Skiff Q3) QUARK: the collision's (the same) */
+    // int32_t qx = -1, qy = 0; // JSM unused                          /* (Skiff Q3) QUARK: the collision's (the same) */
     int six = (int32_t)NTRK * (HL_H + 3) - 3 > (int32_t)graph_h();
     int32_t y = six ? ((int32_t)graph_h() - (HL_H + ((int32_t)NTRK - 1) * (HL_C_H + 3))) / 2 : 0;
     cv_rect(0, 0, 240, (int32_t)graph_h(), T_BG);      /* (over the panel: the lanes are its tiles) */
@@ -64,71 +64,27 @@ static void graph_tracks(void)
         uint32_t first = hl_bar(t, &n), play = t->seq_idx % 16u;
         int sel = k == song.sel, muted = t->p[P_MUTE] != 0, big = sel || !six;
         int32_t h = big ? HL_H : HL_C_H, ch = big ? HL_CELL_H : HL_C_CELL_H, b[4];
-#ifndef JSM_BACK_TO_NORMAL
+        // JSM from now on, cleaning all the crap from themes
         uint16_t col = muted ? T_DIM : T_TRK(k);
         uint16_t lane = sel ? T_RAISE : T_SURF;
         uint16_t on = col, off = T_LINE;      
-#else                                                
-        int ib = sel && !ux.quark;                    /* (the selected lane a band, INK on it; (Skiff Q3) QUARK: a beam,
-                                                       * its colour faint, the colours as on the others) */
-        uint16_t col = muted ? T_DIM : T_TRK(k), lane = sel ? (ux.quark ? ux_mix(col, T_BG, 80) : col) : ux.quark ? T_BG : T_SURF;
-        uint16_t ink = ib ? T_INK : T_TEXT, on = ib ? T_INK : col, off = ib ? ux_mix(col, T_INK, 55) : T_LINE;
-#endif
-
         char name[20], d[2] = {(char)('1' + k), 0};
-        if (ux.crypt && !sel)                         /* (Skiff C3) CRYPT: the lanes stone */
-            cr_stone(3, y, 234, h, lane);
-        else if (ux.neon && sel) {                    /* (Skiff N3) NEON: the selected lane a neon sign (its colour into
-                                                       * violet), the others asphalt, the lane's paint between them */
-            uint16_t st[2] = {col, ux_mix(col, NE_VIOLET, 70)};
-            ne_hgrad(3, y, 234, h, st, 2);
-        } else
-#ifndef JSM_BACK_TO_NORMAL
-            cv_rect(3, y, 234, h, T_BG);
-            if (big) // color background rectangle only behind the track number
-                cv_rect(3, y, 18, h, col);
-#else        
-            cv_rect(3, y, 234, h, lane);
-#endif
-        if (ux.quark && sel) {                        /* (Skiff Q3) QUARK: the beam's walls lit; the others two rails */
-            cv_rect(3, y, 234, 1, col);
-            cv_rect(3, y + h - 1, 234, 1, col);
-        } else if (ux.quark) {
-            cv_rect(HL_STEP_X - 2, y + h / 2 - 3, 236 - HL_STEP_X + 2, 1, T_LINE);
-            cv_rect(HL_STEP_X - 2, y + h / 2 + 3, 236 - HL_STEP_X + 2, 1, T_LINE);
-        }
-        if (ux.neon && k + 1u < NTRK)
-            for (i = 6; i < 234u; i += 10u)
-                cv_rect((int32_t)i, y + h + 1, 5, 1, ux_mix(NE_YELLOW, T_BG, 65));
+        cv_rect(3, y, 234, h, T_BG);
+        if (big) // color background rectangle only behind the track number
+            cv_rect(3, y, 18, h, col);
         text_ink(big ? &AF_V : &AF_M, d, b);             /* the number itself: the colour on SURF, INK on the band */
         GFX_HOOK_ALIGN(0, y, 0, y + h, AL_V, "home lane number on its middle");
-#ifndef JSM_BACK_TO_NORMAL
         // Big track number
         cv_text_on(HL_NUM_X - b[0]-4, y + (big ? CAP_IN(V, HL_H) : CAP_IN(M, HL_C_H)), big ? &AF_V : &AF_M, d,
                    big ? T_BG : col, big ? col : lane);
-#else        
-        cv_text_on(HL_NUM_X - b[0], y + (big ? CAP_IN(V, HL_H) : CAP_IN(M, HL_C_H)), big ? &AF_V : &AF_M, d,
-                   ib ? T_INK : col, lane);
-#endif
         if (midi_mark(k))                             /* ((Skiff U4, F4) MIDI IN playing it: a mark after the number) */
-#ifndef JSM_BACK_TO_NORMAL
             cv_rect(HL_NUM_X + (big ? 14 : 10), y + h / 2 - 2, 4, 4, T_THEME);
-#else        
-            cv_rect(HL_NUM_X + (big ? 14 : 10), y + h / 2 - 2, 4, 4, ib ? T_INK : T_THEME);
-#endif
         sound_name(t, name);
         if (big) {
-#ifndef JSM_BACK_TO_NORMAL
             cv_free_text(HL_NAME_X, y + HL_NAME_CY - AF_M_CAP_Y, &AF_M, name[0] ? name : "--", muted && !sel ? T_DIM : T_TEXT,
                          lane, HL_STEP_X - 4 - HL_NAME_X);
             cv_free_text(HL_NAME_X, y + HL_ENG_CY - AF_S_CAP_Y, &AF_S, ENGINES[t->eng_req % NENGINES]->name,
                          T_MID, lane, HL_STEP_X - 4 - HL_NAME_X);
-#else            
-            cv_free_text(HL_NAME_X, y + HL_NAME_CY - AF_M_CAP_Y, &AF_M, name[0] ? name : "--", muted && !sel ? T_DIM : ink,
-                         lane, HL_STEP_X - 4 - HL_NAME_X);
-            cv_free_text(HL_NAME_X, y + HL_ENG_CY - AF_S_CAP_Y, &AF_S, ENGINES[t->eng_req % NENGINES]->name,
-                         ib ? T_INK : T_MID, lane, HL_STEP_X - 4 - HL_NAME_X);
-#endif
         } else {
             GFX_HOOK_ALIGN(0, y, 0, y + h, AL_V, "home compact lane name on its middle");
             cv_free_text(HL_NAME_X, y + CAP_IN(S, HL_C_H), &AF_S, name[0] ? name : "--", muted ? T_DIM : T_TEXT, lane,
@@ -137,77 +93,17 @@ static void graph_tracks(void)
         for (i = 0; i < n; i++) {                     /* (past the track's length: nothing) */
             const step_t *st = &s[first + i];
             int32_t x = hl_cell_x(i), cy = y + (h - ch) / 2;
-            if (ux.quark) {                           /* (Skiff Q3) QUARK: a note a bunch of particles in the pipe (played
-                                                       * this bar: spent, a ring), a tie its trail, nothing a dot */
-                int32_t bx = x + HL_CELL_W / 2, by = y + h / 2;
-                int past = song.playing && t->seq_idx / 16u * 16u == first && i < play;
-                if (step_on(st) || st->hit) {
-                    if (past)
-                        qk_ellipse(bx, by, 2, 2, 0, ux_mix(col, T_BG, 45), 8);
-                    else {
-                        qk_disc(bx, by, big ? 3 : 2, col);
-                        cv_rect(bx - 1, by - 1, 1, 1, ux_mix(col, T_TEXT, 60));
-                    }
-                } else if (step_tie(st))
-                    cv_rect(x - 1, by, HL_CELL_W + 2, 1, ux_mix(col, T_BG, 40));
-                else
-                    cv_rect(bx, by, 1, 1, T_DIM);
-            } else if (ux.crypt) {                    /* (Skiff) CRYPT: the steps in ASCII, # a note, - a tie, . nothing */
-                int32_t base = cy + ch / 2 + 4;       /* (S's capitals centred on the cell) */
-                if (step_on(st) || st->hit)
-                    cr_ch(x, base, &AF_S, '#', on);
-                else if (step_tie(st))
-                    cr_ch(x + 1, base, &AF_S, '-', on);
-                else
-                    cr_ch(x + 2, base, &AF_S, '.', sel ? off : T_DIM);
-            } else if (ux.neon && !sel && (step_on(st) || st->hit)) {   /* (Skiff N3) NEON: a lit */
-                cv_rect(x - 1, cy - 1, HL_CELL_W + 2, ch + 2, ux_mix(on, lane, 65));      /* tube: its glow, its hot top */
-                cv_rect(x, cy, HL_CELL_W, ch, on);
-                cv_rect(x + 1, cy + 1, HL_CELL_W - 2, 1, ux_mix(on, T_TEXT, 60));
-            } else if (ux.neon && !sel && !step_tie(st)) {
-                cv_rect(x + HL_CELL_W / 2 - 1, cy + ch / 2, 2, 1, off);   /* (nothing: a dim dash) */
-            } else if (step_on(st) || st->hit) {
-                cv_rect(x, cy, HL_CELL_W, ch, on);
-            } else {
-                cv_rect(x, cy, HL_CELL_W, ch, off);
-                if (step_tie(st))               /* a tie: the note held on, half the cell */
-                    cv_rect(x, cy + ch / 4, HL_CELL_W, ch / 2, on);
-            }
+            cv_rect(x, cy, HL_CELL_W, ch, off);
+            if (step_tie(st))               /* a tie: the note held on, half the cell */
+                cv_rect(x, cy + ch / 4, HL_CELL_W, ch / 2, on);
             if (song.playing && i == play && t->seq_idx / 16u * 16u == first) {   /* the step playing: a line before it */
-                if (ux.neon)                          /* ((Skiff N3) NEON: a laser, its glow) */
-                    cv_rect(x - 3, y + 2, 3, h - 4, ux_mix(T_ACCENT, lane, 60));
-                if (ux.quark) {                       /* ((Skiff Q3) QUARK: the beam line, dotted gold; on the selected
-                                                       * lane a collision) */
-                    int32_t yy;
-                    for (yy = y; yy < y + h; yy += 2)
-                        cv_rect(x - 2, yy, 1, 1, T_ACCENT);
-                    if (sel && !ui_ph_line) {     /* ((Skiff #27) MENU > PLAYHEAD LINE: no collision) */
-                        qx = x - 2;
-                        qy = y + h / 2;
-                    }
-                } else
-#ifndef JSM_BACK_TO_NORMAL
-                cv_rect(x - 2, y + 2, 1, h - 4, ux.neon ? T_ACCENT : sel ? col : ux.crypt ? CR_GOLD : T_TEXT);
-#else                
-                cv_rect(x - 2, y + 2, 1, h - 4, ux.neon ? T_ACCENT : sel ? T_INK : ux.crypt ? CR_GOLD : T_TEXT);
-#endif
+                cv_rect(x - 2, y + 2, 1, h - 4, T_TEXT);
                 if (sel && !ui_ph_line) {         /* ((Skiff #27) PLAYHEAD LINE: no torch, no car) */
                     tx = x - 7;
                     ty = y + (h - 24) / 2;
                 }
             }
-        }
+        } // JSM end
         y += h + 3;
-    }
-    if (ux.crypt && tx >= 0)                          /* (Skiff C3) CRYPT: a torch on it, flickering a step to the next */
-        cr_torch(tx, ty, ui.frame / 6u, 2);
-    if (ux.quark && qx >= 0)                          /* (Skiff Q3) QUARK: its tracks a new way each step */
-        qk_burst(qx, qy, 8, TSEL->seq_idx * 2654435761u + 7u, 24, T_BG);
-    if (ux.neon && tx >= 0) {                         /* (Skiff N3) NEON: the car, its nose at the playhead (on the steps
-                                                       * just played), its light trails back to the lane's first step */
-        int32_t cx = tx + 7 - 24;
-        if (cx < HL_STEP_X - 6)
-            cx = HL_STEP_X - 6;
-        ne_car(cx, ty + 8, SPR_CAR24, 1, T_TEXT, cx - (HL_STEP_X - 4), T_TRK(song.sel));
     }
 }
