@@ -182,15 +182,19 @@ static void params_by_count(int16_t *out, const int16_t *in, uint32_t np, const 
 #define GSID_COUNT ((uint32_t)G_COUNT)
 #define SID_E0 127u                            /* the engine values' first SID (P_E0 before #36): frozen */
 #ifndef JSM_BACK_TO_NORMAL
-_Static_assert(P_LPAN0 == SID_E0 && P_COUNT == P_E0 + 8u, "sid_p: the lane pans and those after them, then E0..E7");
+_Static_assert(P_LPAN0 == SID_E0 && P_E0 == SID_E0 + 9u && P_COUNT == P_E0 + 8u, "sid_p: the lane pans, then E0..E7");
+static uint32_t sid_p(uint32_t sid)            /* P_COUNT: not one of ours */
+{
+    return sid < SID_E0 ? sid : sid < SID_E0 + 8u ? sid + 9u : sid < SID_COUNT ? sid - 8u : P_COUNT;
+}
 #else
 _Static_assert(P_LPAN0 == SID_E0 && P_E0 == SID_E0 + 8u && P_COUNT == P_E0 + 8u, "sid_p: the lane pans, then E0..E7");
-#endif
-
 static uint32_t sid_p(uint32_t sid)            /* P_COUNT: not one of ours */
 {
     return sid < SID_E0 ? sid : sid < SID_E0 + 8u ? sid + 8u : sid < SID_COUNT ? sid - 8u : P_COUNT;
 }
+#endif
+
 #define p_sid(p) sid_p(p)                      /* (a swap: its own inverse) */
 static uint32_t gsid_g(uint32_t sid) { return sid < GSID_COUNT ? sid : G_COUNT; }
 /* a track's parameters p into b by SID: their count, then each value + 64. How many bytes; 0 for a value no record
