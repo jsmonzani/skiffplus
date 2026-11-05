@@ -21,6 +21,7 @@ Set Large in the settings, stay with SKIFF theme and enjoy the new look.
 - New LFO SYNC options: DIV4, DIV6... activate a second slower LFO (mod source DIVX) that follows the main LFO at a slower rate (x4, x6, ...). Useful for fast and slow modulations within the same patch.
 - fix when recording overlapping notes in a sequence (a held note would held notes and erase notes underneath - look for a "held note must not erase what it crosses" in seq.c)
 - new melodic sequence function TIGHT (hold SEQ then G4) that limits the notes nudges to +-4
+- Track filter LP/HP DJ filter, under EDIT, last page
 
 ### Development
 All changes use the JSM keyword and an unset flag JSM_BACK_TO_NORMAL reverts to the defaults of Skiff. 
