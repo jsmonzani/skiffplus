@@ -14,9 +14,13 @@
  * A step that held something and is empty after loses its locks (as EDIT's step clear); REVERSE and SHIFT move the
  * steps' automation and locks with them. RANDOM and COOK draw from libc.c rng(): no seed is kept, each press
  * differs. A sequence of ties reversed keeps its note first: N T T -> N T T at the mirrored place */
+#ifndef JSM_BACK_TO_NORMAL
+enum { TL_CLEAR, TL_REV, TL_LEFT, TL_RIGHT, TL_RANDOM, TL_COOK, TL_BEAT, TL_EUCLID, TL_LCLR, TL_LREV, TL_LFILL, TL_LRND,
+       TL_DOUBLE, TL_HALF, TL_DICE, TL_N };
+#else
 enum { TL_CLEAR, TL_REV, TL_LEFT, TL_RIGHT, TL_RANDOM, TL_COOK, TL_BEAT, TL_EUCLID, TL_LCLR, TL_LREV, TL_LFILL, TL_LRND,
        TL_DOUBLE, TL_HALF, TL_N };
-
+#endif
 static uint32_t tl_len(const track_t *t) { return (uint32_t)clamp(t->p[P_SLEN], 1, NSTEP); }
 static uint32_t tl_rnd(uint32_t n) { return n ? rng() % n : 0u; }
 static int tl_gate(const step_t *s) { return s->time == ST_NOTE && s->n && step_ties(s) != (1u << s->n) - 1u; }   /* ((2.0)
@@ -54,6 +58,10 @@ static void tl_undo_take(track_t *t, const char *name)
     undo.pid = trk_pid[i];
     motion_snapshot_track(t, &undo.motion_backup);
 }
+
+#ifndef JSM_BACK_TO_NORMAL
+#include "song_dice.c"
+#endif
 
 /* the layer's OCT- (SEQ TOOLS, REC): t's steps and automation as the undo copy of its first change holds them (the track
  * as the layer opened; (2.0) no copy of its own: ui.c upin keeps that one in the ring), after a copy of now (PUT BACK:

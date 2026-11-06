@@ -400,6 +400,17 @@ static void tools_key(uint32_t p)
         ui.force = 1;
         return;
     }
+#ifndef JSM_BACK_TO_NORMAL
+    if (p == TL_DICE) {
+        if (!dice_all_tracks())
+            return;
+        if (!lys.loaded)
+            str_cpy(ui.msg2, "HOLD [SAVE]: UNDO", sizeof ui.msg2);
+        lys.loaded = 1;
+        ui.force = 1;
+        return;
+    }    
+#endif
     if (!(m = tl_do(TSEL, p, ui.lane)))
         return;
     if (p == TL_COOK && lys.cook < 99u) {               /* "COOKED 3": the third since the layer opened */
@@ -1205,6 +1216,19 @@ static void layer_seq(void)
         GFX_HOOK_ALIGN(x, 100, x + 18, 118, AL_HV, "tools lane cell name centred");
         cv_text_in(x, 100 + CAP_IN(S, 18), 18, &AF_S, drum_lane_abbr(TSEL, p), ink, fill);
     }
+#ifndef JSM_BACK_TO_NORMAL
+    // JSM only double, no half
+    for (p = TL_DOUBLE; !eu.on && p < TL_N; p++) {
+        int32_t x = 168 + 35 * (int32_t)(p - TL_DOUBLE);
+        uint16_t ink, fill = lc_box(x, 100, 31, 18, lc_fill(st, &ink));
+        n[0] = W_NOTE[p];
+        GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "tools resize cell on its middle");
+        cv_text_on(x + 5, 100 + CAP_IN(S, 18), &AF_S, n, fill == T_RAISE || fill == T_SURF ? T_MID : ink, fill);
+        GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "tools resize cell on its middle");
+        cv_text_r(x + 26, 100 + CAP_IN(S, 18), &AF_S,
+                p == TL_DOUBLE ? "x2" : "DICE", ink, fill);
+    }    
+#else
     for (p = TL_DOUBLE; !eu.on && p < TL_N; p++) {     /* ((1.3) D5 DOUBLE (x2), E5 HALF (/2) at the row's end, */
         int32_t x = 168 + 35 * (int32_t)(p - TL_DOUBLE);   /* 31 px each: the lanes' row has no room for their names) */
         uint16_t ink, fill = lc_box(x, 100, 31, 18, lc_fill(st, &ink));
@@ -1214,6 +1238,7 @@ static void layer_seq(void)
         GFX_HOOK_ALIGN(0, 100, 0, 118, AL_V, "tools resize cell on its middle");
         cv_text_r(x + 26, 100 + CAP_IN(S, 18), &AF_S, p == TL_DOUBLE ? "x2" : "/2", ink, fill);
     }
+#endif
 }
 
 /* REC: a row a key (26 px, 4 apart): the key's cell (its note, icon and name), then CLEAR's track and what it holds,
