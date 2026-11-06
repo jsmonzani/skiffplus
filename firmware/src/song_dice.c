@@ -313,7 +313,7 @@ static void dice_bass(track_t *t, uint32_t len)
         int32_t d = (int32_t)dice_chord_at(i), delta = 0;
         uint32_t on = 0, octave = 0, hold = 0;
         uint32_t vel = 96u, flags = 0;
-
+        static const int8_t WALK[8] = {0, 2, 4, 2, 0, 2, 4, 6};
         switch (st->bass) {
         case DICE_BASS_FIFTHS:
             on = p == 0u || p == 8u;
@@ -322,10 +322,10 @@ static void dice_bass(track_t *t, uint32_t len)
             break;
 
         case DICE_BASS_WALK: 
-            // static const int8_t WALK[8] = {0, 2, 4, 2, 0, 2, 4, 6};
+            
             on = p % 2u == 0u;
-            // delta = WALK[(p / 2u) % 8u];
-            delta = 0;
+            delta = WALK[(p / 2u) % 8u];
+            //delta = 0;
             vel = p % 4u == 0u ? 96u : 78u;
             break;            
         case DICE_BASS_OCT8:
@@ -715,7 +715,8 @@ static void dice_arp(track_t *t, uint32_t len)
     const dice_style_t *st = dice_piece.style;
     int32_t tonic = 50, chord[4];
     uint32_t energy = dice_piece.energy;
-    uint32_t rate = energy == 2u || st->arp == DICE_ARP_GLASS ? 1u : 2u;
+    // JSM too many arps, by default trying something else with 2 (frequent) to 5 and 3 in between for more spare / strange sruff
+    uint32_t rate = 2u + (rng() % 4); //energy == 2u || st->arp == DICE_ARP_GLASS ? 1u : 2u;
     uint32_t hits = (uint32_t)dice_rr(5, 9) + energy * 2u;
     uint32_t walk = 0;
     static const uint8_t ALB[4] = {0, 3, 1, 3};
