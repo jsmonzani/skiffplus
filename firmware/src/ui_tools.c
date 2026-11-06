@@ -767,7 +767,7 @@ static const char *tl_do(track_t *t, uint32_t p, uint32_t l)
         str_cpy(b + str_len(b), " STEPS", sizeof b - str_len(b));
         return b;                                       /* (nothing emptied inside the new LEN: no unlock) */
     case TL_BEAT:
-        if (drum) { // JSM special double function
+        if (drum) { // JSM special double function drums...
             for (i = 0; i < len; i++) {
                 step_clear(&t->step[i]);
                 if (i % 4u == 0u) grid_hit(t, i, DV_KICK, 1);
@@ -775,7 +775,7 @@ static const char *tl_do(track_t *t, uint32_t p, uint32_t l)
                 if (i % 2u == 0u) grid_hit(t, i, DV_HATC, 1);
             }
             msg = "BASIC BEAT";
-        } else { // JSM
+        } else { // JSM ... or tight
             for (i = 0; i < len; i++)
                 if (t->step[i].time == ST_NOTE && t->step[i].n)
                     t->step[i].nudge = (int8_t)clamp(t->step[i].nudge, -4, 4);
