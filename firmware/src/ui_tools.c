@@ -16,7 +16,7 @@
  * differs. A sequence of ties reversed keeps its note first: N T T -> N T T at the mirrored place */
 #ifndef JSM_BACK_TO_NORMAL
 enum { TL_CLEAR, TL_REV, TL_LEFT, TL_RIGHT, TL_RANDOM, TL_COOK, TL_BEAT, TL_EUCLID, TL_LCLR, TL_LREV, TL_LFILL, TL_LRND,
-       TL_DOUBLE, TL_HALF, TL_DICE, TL_N };
+       TL_DOUBLE, TL_DICE, TL_N };
 #else
 enum { TL_CLEAR, TL_REV, TL_LEFT, TL_RIGHT, TL_RANDOM, TL_COOK, TL_BEAT, TL_EUCLID, TL_LCLR, TL_LREV, TL_LFILL, TL_LRND,
        TL_DOUBLE, TL_HALF, TL_N };
@@ -680,10 +680,12 @@ static __attribute__((noinline)) int tl_resize_ok(track_t *t, uint32_t p, uint32
         ui_message("64 STEPS: NO ROOM");
         return 0;
     }
+#ifdef JSM_BACK_TO_NORMAL
     if (p == TL_HALF && len < 2u) {
         ui_message("1 STEP: NO HALF");
         return 0;
     }
+#endif
     if (p == TL_DOUBLE && !tl_motion_plan(&m, t, len, tl_nl(len), tl_nl(len) - len, len)) {
         ui_message("AUTOMATION FULL");
         return 0;
@@ -723,8 +725,13 @@ static const char *tl_do(track_t *t, uint32_t p, uint32_t l)
     int drum = drum_track(t);
     const char *msg = 0;
     l %= NLANE;
+#ifndef JSM_BACK_TO_NORMAL
+    if ((p == TL_DOUBLE) && !tl_resize_ok(t, p, len))
+        return 0;
+#else
     if ((p == TL_DOUBLE || p == TL_HALF) && !tl_resize_ok(t, p, len))
         return 0;
+#endif
     if (p == TL_COOK) {                                 /* (nothing there: nothing to cook, no undo copy) */
         for (i = 0; i < len; i++)
             n += drum ? (uint32_t)__builtin_popcount(step_lanes(&t->step[i])) : (uint32_t)tl_gate(&t->step[i]);
@@ -769,7 +776,9 @@ static const char *tl_do(track_t *t, uint32_t p, uint32_t l)
         msg = "COOKED";
         break;
     case TL_DOUBLE:
+#ifdef JSM_BACK_TO_NORMAL    
     case TL_HALF:
+#endif
         str_cpy(b, p == TL_DOUBLE ? "DOUBLED: " : "HALVED: ", sizeof b);
         fmt_int(b + str_len(b), (int32_t)(p == TL_DOUBLE ? tl_double(t, len) : tl_half(t, len)));
         str_cpy(b + str_len(b), " STEPS", sizeof b - str_len(b));
