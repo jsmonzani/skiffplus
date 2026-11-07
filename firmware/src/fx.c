@@ -1022,6 +1022,10 @@ static __attribute__((noinline)) void lpan_mix(track_t *t, const int32_t *b, con
 {
     int32_t lvl = LEVEL_Q12[t->p[P_LEVEL] & 127], pan = t->p[P_PAN];
     int32_t gl = 4096 - (pan > 0 ? pan * 64 : 0), gr = 4096 + (pan < 0 ? pan * 64 : 0);
+#ifndef JSM_BACK_TO_NORMAL
+    // JSM fix hard right pan is 63 which still gets some on the left (-64 .. 63 scale)
+    if (gl == 4096 - 64*63) gl = 0;
+#endif 
     int32_t c = t->p[P_CHOR] * 258, dl = t->p[P_DLY] * 258, r = t->p[P_REV] * 258, pk = t->peak;
     int32_t xmax = c > dl ? c : dl;
     uint32_t i;
@@ -1186,6 +1190,10 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
     {
         int32_t lvl = LEVEL_Q12[t->p[P_LEVEL] & 127], pan = t->p[P_PAN];
         int32_t gl = 4096 - (pan > 0 ? pan * 64 : 0), gr = 4096 + (pan < 0 ? pan * 64 : 0);
+#ifndef JSM_BACK_TO_NORMAL
+        // JSM fix hard right pan is 63 which still gets some on the left (-64 .. 63 scale)
+        if (gl == 4096 - 64*63) gl = 0;
+#endif         
         int32_t c = t->p[P_CHOR] * 258, d = t->p[P_DLY] * 258, r = t->p[P_REV] * 258, pk = t->peak;
         int32_t xmax = c > d ? c : d;
         xmax = 0x7FFFFFFF / ((xmax > r ? xmax : r) | 1);   /* sends: loud chords at a high LEVEL */
