@@ -622,3 +622,10 @@ static volatile uint32_t fm1_ms;  /* milliseconds since boot (TIMER4-based, TIME
 /* boot-loop guard (main.c): two boots in a row that die in the first 30 s -> UBOOT */
 #define BOOTGUARD_MAGIC 0x42475244u
 struct { uint32_t magic, failed, pending; } bootguard __attribute__((section(".noinit")));
+
+#ifndef JSM_BACK_TO_NORMAL
+// JSM separator for 1+2, 3+4, 5+6 tracks or ALL of them. Using 0b000011 for 1+2 and so forth
+// Disabling the separator requires a special value, not 0b111111 that would hard pan tracks
+#define STEMS_ALL 255
+static uint16_t STEMS_SEPARATOR = STEMS_ALL ;
+#endif

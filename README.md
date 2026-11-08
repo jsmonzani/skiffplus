@@ -22,6 +22,7 @@ Set Large in the settings, stay with SKIFF theme and enjoy the new look.
 - fix when recording overlapping notes in a sequence (a held note would held notes and erase notes underneath - look for a "held note must not erase what it crosses" in seq.c)
 - new melodic sequence function TIGHT (hold SEQ then G4) that limits the notes nudges to +-4
 - Track filter LP/HP DJ filter, under EDIT, last page
+- GLO layer > STEMS (A): separate channels in pairs (1+2, 3+4, 5+6) and hard-pan them for easier stem exportas USB audio out is only stereo. Stereo effects are disabled. Doesn't work with stereo drums.
 
 ### Development
 All changes use the JSM keyword and an unset flag JSM_BACK_TO_NORMAL reverts to the defaults of Skiff. 

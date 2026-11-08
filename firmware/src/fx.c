@@ -1148,9 +1148,9 @@ static __attribute__((noinline)) void smx_render(track_t *t, voice_t *v, uint32_
 /* one synth part into the dry mix and the sends (of sm: mx[0]; mx[1] on the second core); a part with no voice sounding
  * costs the LFO tick and a cleared buffer only (after the DIST tail has run out) */
 #if FELUCCA_CPU2
-static __attribute__((noinline)) void mix_part(track_t *t, uint32_t n SM_DECL)   /* (either core runs it: out of the ISR) */
+static __attribute__((noinline)) void mix_part(track_t *t, uint32_t n SM_DECL, uint32_t tracknb)   /* (either core runs it: out of the ISR) */
 #else
-static void mix_part(track_t *t, uint32_t n SM_DECL)
+static void mix_part(track_t *t, uint32_t n SM_DECL, uint32_t tracknb)
 #endif
 {
     int32_t *b = SM(b);
@@ -1161,7 +1161,7 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
     mod_begin(t);                                       /* the matrix's per-block values into t->p (mod.c) */
     t->lpan_on = drum_engine(t->engine) && lanes_panned(t);   /* ((2.0, #36) a kit with a lane panned: mix_spread) */
     t->spread_on = !t->lpan_on && t->p[P_SPRD] > 0 &&   /* ((1.3) mix_spread; (2.0) a panned kit's lanes, not SPREAD) */
-                   (trk_vmode(t) == V_POLY || trk_vmode(t) == V_UNISON);
+                   (trk_vmode(t) == V_POLY || trk_vmode(t) == V_UNISON);            
 #if FELUCCA_CPU2
     vs_sm[(uint32_t)(t - trk) % NPART] = sm;            /* ((#21) smx_render's sums) */
     nr = track_render(t, b, n);
@@ -1181,7 +1181,8 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
             mod_end(t);
         return;
     }
-    if (t->spread_on | t->lpan_on) {                   /* ((1.3) SPREAD: its own mix, mix_spread; (2.0) a kit panned) */
+    // JSM stereo spread effect is allowed when stems are not seperated
+    if ((STEMS_SEPARATOR == STEMS_ALL ) &&  (t->spread_on | t->lpan_on)) {                   /* ((1.3) SPREAD: its own mix, mix_spread; (2.0) a kit panned) */
         mix_spread(t, b, n SM_ARG(sm));
         if (MOD(t).on)
             mod_end(t);
@@ -1192,7 +1193,17 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
         int32_t gl = 4096 - (pan > 0 ? pan * 64 : 0), gr = 4096 + (pan < 0 ? pan * 64 : 0);
 #ifndef JSM_BACK_TO_NORMAL
         // JSM fix hard right pan is 63 which still gets some on the left (-64 .. 63 scale)
+        // Handle stems
         if (gl == 4096 - 64*63) gl = 0;
+        if (STEMS_SEPARATOR != STEMS_ALL ) { // STEMS is active
+            if (STEMS_SEPARATOR & (1 << tracknb)) { // should we render this track? (track index into the max)
+                // hard-pan left and right
+                if (tracknb % 2) { gl = 0; } else  { gr = 0; };
+            } else { // mute
+                gl = 0;
+                gr = 0;
+            }
+        }
 #endif         
         int32_t c = t->p[P_CHOR] * 258, d = t->p[P_DLY] * 258, r = t->p[P_REV] * 258, pk = t->peak;
         int32_t xmax = c > d ? c : d;
@@ -1213,12 +1224,14 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
             int32_t xs = clamp(x, -xmax, xmax);         /* sends: mulq15 would overflow */
             if (a > pk)
                 pk = a;
-            if (c)
-                SM(c)[i] += mulq15(xs, c);
-            if (d)
-                SM(d)[i] += mulq15(xs, d);
-            if (r)
-                SM(v)[i] += mulq15(xs, r);
+            if (STEMS_SEPARATOR == STEMS_ALL ) { // JSM chorus, delay, reverb only computer when not it STEMS
+                if (c)
+                    SM(c)[i] += mulq15(xs, c);
+                if (d)
+                    SM(d)[i] += mulq15(xs, d);
+                if (r)
+                    SM(v)[i] += mulq15(xs, r);
+            }
             SM(l)[i] += (x * gl) >> 12;
             SM(r)[i] += (x * gr) >> 12;
         }
@@ -1252,7 +1265,7 @@ static void c1_parts(uint32_t arg)                      /* arg: the tracks (bit 
         sm->l[i] = sm->r[i] = sm->c[i] = sm->d[i] = sm->v[i] = 0;
     for (i = 0; i < NPART; i++)
         if (arg >> i & 1u)
-            mix_part(&trk[i], n, sm);
+            mix_part(&trk[i], n, sm, i); // JSM add track number
 }
 
 /* which tracks go to the second core: the split of the last block's costs that leaves the busier core the least; none
@@ -1318,7 +1331,7 @@ static void mix_block(int32_t *out, uint32_t n)
         c1_blocks += m != 0;
         for (i = 0; i < NPART; i++)
             if (!(m >> i & 1u))
-                mix_part(&trk[i], n, &mx[0]);
+                mix_part(&trk[i], n, &mx[0], i); // JSM add track number
         if (m) {
             const mixsum_t *sm = &mx[1];
             if (C1_WAIT())                              /* it stopped answering (held from now on): its tracks here */
@@ -1336,7 +1349,7 @@ static void mix_block(int32_t *out, uint32_t n)
     }
 #else
     for (i = 0; i < NPART; i++)
-        mix_part(&trk[i], n);
+        mix_part(&trk[i], n, i); // JSM add track number
 #endif
     if (thr_on)
         throw_off();                                    /* (Skiff) .. and off: nothing else sees them */
