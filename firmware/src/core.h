@@ -628,4 +628,5 @@ struct { uint32_t magic, failed, pending; } bootguard __attribute__((section(".n
 // Disabling the separator requires a special value, not 0b111111 that would hard pan tracks
 #define STEMS_ALL 255
 static uint16_t STEMS_SEPARATOR = STEMS_ALL ;
+static uint16_t CUSTOM_KNOB = 0; // JSM on HOME, = 1 -> PRESETS becomes velocity
 #endif

@@ -1862,7 +1862,7 @@ static void presets_turn(int32_t s)
     const page_t *pg = cur_page();
     uint32_t g = pg->graph;
 #ifndef JSM_BACK_TO_NORMAL
-    if (ui.home) {
+    if (ui.home && CUSTOM_KNOB) {
         kb_vel = (uint8_t)clamp((int32_t)kb_vel + accel(EN_SELECT, s, 126), 1, 127); // Turning PRESETS on HOME changes velocity
         char b[8];
         fmt_int(b, kb_vel);

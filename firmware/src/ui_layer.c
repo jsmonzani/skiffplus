@@ -521,8 +521,8 @@ static void perf_slot_key(uint32_t k, uint32_t p)
  * G4 TAP, in the screen's order (#11; 1.2 had T5/T6 on E4/G4 between them); a track's number, or GW_*. The black
  * keys F#3 .. F#4: MUTE T1..T6 */
 // JSM new: GW_STEMS
-enum { GW_ALL = 8, GW_FILL, GW_TAP, GW_STEMS, GW_NONE };
-static const uint8_t GLO_W[10] = {0, 1, 2, 3, 4, 5, GW_ALL, GW_FILL, GW_TAP,  GW_STEMS};
+enum { GW_ALL = 8, GW_FILL, GW_TAP, GW_STEMS, GW_CUSTOM_KNOB, GW_NONE };
+static const uint8_t GLO_W[11] = {0, 1, 2, 3, 4, 5, GW_ALL, GW_FILL, GW_TAP,  GW_STEMS, GW_CUSTOM_KNOB};
 _Static_assert(NTRK <= 6u, "GLO: a SOLO key for every track");
 static uint32_t glo_white(uint32_t k)
 {
@@ -595,6 +595,9 @@ static void layer_key(uint32_t l, uint32_t k)
                 STEMS_SEPARATOR == 0b001100 ? "3+4" : "5+6"
                 
               );       
+        } else if (w == GW_CUSTOM_KNOB) { // JSM PRESETS becomes velocity know on HOME
+            CUSTOM_KNOB = 1 - CUSTOM_KNOB;
+            ui_say("HOME PRST=",CUSTOM_KNOB ? "VEL" : "PRESET");
         }
     } else if (l == LAYER_SCL) {
         TSEL->p[P_ROOT] = (int16_t)((k + 5u) % 12u);    /* the key's note name (F3 = F) */
@@ -823,7 +826,7 @@ static uint32_t layer_leds(uint32_t *br)
         } else if (l == LAYER_GLO) {                    /* sounding lit; SOLO held lit, the others, C4, F4 breathe; */
             e = glo_white(k);                           /* (Skiff) F4 FILL too */
             on = b ? p < NTRK && glo_sounding(p) : (e < NTRK && ((lys.solo >> k) & 1u)) || (e == GW_FILL && seq_fill);
-            can = !b && (e < NTRK || e == GW_ALL || e == GW_FILL  || e == GW_STEMS || (e == GW_TAP && !song.g[G_CLOCK])); // JSM add GW_STEMS
+            can = !b && (e < NTRK || e == GW_ALL || e == GW_FILL  || e == GW_STEMS || e == GW_CUSTOM_KNOB || (e == GW_TAP && !song.g[G_CLOCK])); // JSM add GW_STEMS
         } else if (l == LAYER_SCL) {                    /* the root lit, the scale's notes breathe */
             e = (k + 5u + 12u - root) % 12u;
             on = e == 0u;
@@ -1010,18 +1013,17 @@ static void l6_mute(uint32_t k, uint32_t st, uint32_t icon)   /* (Skiff U2, R10)
     GFX_HOOK_ALIGN(0, y, 0, y + LM_H, AL_V, "layer key cell icon / name centred up/down");
     cv_text_on(x + 34 - b[2], y + CAP_IN(M, LM_H), &AF_M, d, idle ? T_TRK(k) : ink, fill);
 }
-/* JSM l4 4 cells*/
-#define L4_X(c) (4 + 57 * (int32_t)(c))
-#define L4_W 54
-static void l4(uint32_t q, const char *note, uint32_t icon, const char *word, uint32_t st)
+/* JSM infoboxes with a variable division*/
+static void lceldiv(uint32_t q, int32_t nb, const char *note, uint32_t icon, const char *word, uint32_t st)
 {
-    int32_t x = L4_X(q), y = 50, b[4];
+    int32_t w = 216 / nb; 
+    int32_t x = 4 + (w+3) * (int32_t)(q), y = 50, b[4];
     uint16_t ink, fill = lc_fill(st, &ink), idle = fill == T_RAISE;
-    fill = lc_box(x, y, L4_W, LC_H, fill);
+    fill = lc_box(x, y, w, LC_H, fill);
     cv_text_on(x + 6, y + 3, &AF_S, note, idle ? T_MID : ink, fill);
     icon_ink(16, icon, b);                               /* (its ink from x + 20, ending 18 px down) */
     cv_icon_on(x + 20 - b[0], y + 18 - b[3], 16, icon, ink, fill);
-    cv_text_in(x, y + 19, L4_W, &AF_M, word, ink, fill);
+    cv_text_in(x, y + 19, w, &AF_M, word, ink, fill);
 }
 
 static void layer_fx(void)
@@ -1047,11 +1049,11 @@ static void layer_glo(void)
         l6_solo(e, (perf_solo >> e) & 1u ? LS_HELD : LS_OFF);   /* MUTE 1..6, latched: F# G# A# C# D# F# ((2.0) */
         l6_mute(e, trk[e].p[P_MUTE] || trk_cut(e) ? LS_MUTE : LS_OFF, ICON_MUTE);   /* a hold cutting too) */
     }
-    l4(0, "E", ICON_MUTE, "ALL", LS_OFF);          /* (unmute all) */
-    l4(1, "F", ICON_DRUM, "FILL", seq_fill ? LS_HELD : LS_OFF);
-    l4(2, "G", ICON_TEMPO, "TAP", song.g[G_CLOCK] ? LS_DIM : LS_OFF);
-    l4(3, "A", ICON_VOICE, "STEMS", LS_OFF);
-
+    lceldiv(0,5, "E", ICON_MUTE, "ALL", LS_OFF);          /* (unmute all) */
+    lceldiv(1,5, "F", ICON_DRUM, "FILL", seq_fill ? LS_HELD : LS_OFF);
+    lceldiv(2,5, "G", ICON_TEMPO, "TAP", song.g[G_CLOCK] ? LS_DIM : LS_OFF);
+    lceldiv(3,5, "A", ICON_VOICE, "STEMS", LS_OFF);
+    lceldiv(4,5, "B", ICON_VOICE, "KNOB", LS_OFF);
 
 }
 static void layer_scl(void)                             /* KNOB 2's scales, 4 x 4, the one now selected */
