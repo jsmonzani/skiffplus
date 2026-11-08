@@ -11,14 +11,14 @@
  *         every pair (OSC 2 alone at 127)
  *   SUB   OSC 1 a saw, OSC 2 a square an octave below it (detuned by DTN in cents as before): MIX (shown SUB) is the
  *         sub oscillator's level */
-static const char *const N_ANALOG_WAVE[] = {"SAW", "SQR", "TRI", "SIN", "PWM", "SYNC", "SUB", "SQ+S"}; //JSM
+static const char *const N_ANALOG_WAVE[] = {"SAW", "SQR", "TRI", "SIN", "PWM", "SYNC", "SUB", "SQ+S","ORGAN"}; //JSM
 enum { AW_SYNC = 5, AW_SUB = 6};
 static const param_desc_t ANALOG_SYNC = {"SYNC", 0, 0, 127, 10, F_INT, 0};   /* DTN's range and default */
 static const param_desc_t ANALOG_SUB = {"SUB", 0, 0, 127, 64, F_PCT, 0};      /* MIX's */
 
 static const param_desc_t *analog_desc(const track_t *t, uint32_t k)
 {
-    if (k == 1u && (t->p[P_E0] == AW_SYNC || t->p[P_E0] == 7 )) // JSM 7 = SQ+S sync
+    if (k == 1u && (t->p[P_E0] == AW_SYNC || t->p[P_E0] >= 7 )) // JSM 7 = SQ+S sync, 8 = SAW + ORGAN
         return &ANALOG_SYNC;
     if (k == 2u && t->p[P_E0] == AW_SUB)
         return &ANALOG_SUB;
@@ -33,6 +33,7 @@ static void analog_note_on(track_t *t, voice_t *v)
     if (!v->s[2])
         v->s[2] = 0x1234567 + (int32_t)v->age;        /* noise state */
     v->s[3] = 0;                                      /* SYNC: no restart pending */
+    v->s[4] = 1;    // JSM soft sync direction: 1 = incremenet the phase forward, 0 = backwards
 }
 
 /* WAVE SYNC / SUB: OSC 1 a saw, OSC 2 the synced saw / the sub square; then noise, drive and the filter as
@@ -52,6 +53,8 @@ static __attribute__((noinline)) void analog_render_x(track_t *t, voice_t *v, in
     uint32_t ph0 = v->ph[0], ph1 = v->ph[1], inc1 = m->inc, inc2;
     int32_t ic1 = v->s[0], ic2 = v->s[1], nst = v->s[2];
     int32_t jl = v->s[3];                             /* SYNC: 1 + the step of a restart a sample ago (16 bits), 0 none */
+    int32_t dir2 = v->s[4]; // JSM soft sync direction
+    
     if (sub) {                                        /* an octave below OSC 1, DTN as OSC 2 always had it */
         inc2 = (det ? cents_inc(m->pitch16, det, 0) : inc1) >> 1;
     } else {                                          /* DTN and the shape above OSC 1, 3/16 semitone a step */
@@ -71,30 +74,48 @@ static __attribute__((noinline)) void analog_render_x(track_t *t, voice_t *v, in
         if (sub) {
             b = osc_pulse(ph1, inc2, 0x80000000u);
         } else {
-            int32_t bl = blep(ph1, inc2);
-            if (jl) {                                 /* just restarted: the step was jl - 1, not a whole cycle */
-                bl = (bl * ((jl - 1) >> 1)) >> 15;
-                jl = 0; 
-            }
             if (wave == 7) { // Sine + Square
                 b = osc_sine(ph1); // sine
-                if (ph0 > 0xFFFFFFFFu - inc1) // sync
-                    b -= (blep(ph0, inc1) * osc_sine(ph1)) >> 15;
+            } else if (wave == 8) { // Saw + organ
+                int32_t sub_sine = osc_sine(ph1 >> 1);
+                int32_t fund = osc_sine(ph1);
+                int32_t sup = osc_sine(ph1 << 1);
+                b = fund + (sub_sine >> 1) + (sup >> 1);
             } else {
+                // BLEP for SAW sync
+                int32_t bl = blep(ph1, inc2);
+                if (jl) {                                 /* just restarted: the step was jl - 1, not a whole cycle */
+                    bl = (bl * ((jl - 1) >> 1)) >> 15;
+                    jl = 0; 
+                }
                 b = (int32_t)(ph1 >> 16) - 32768 - bl; // Saw
+                if (ph0 > 0xFFFFFFFFu - inc1)             /* OSC 1 restarts it before the next sample: round that step */
+                    b -= (blep(ph0, inc1) * (int32_t)(ph1 >> 17)) >> 15;
             }
             
-            if (ph0 > 0xFFFFFFFFu - inc1)             /* OSC 1 restarts it before the next sample: round that step */
-                b -= (blep(ph0, inc1) * (int32_t)(ph1 >> 17)) >> 15;
         }
         ph0 += inc1;
-        ph1 += inc2;
-        if (!sub && ph0 < inc1) {                     /* OSC 1 wrapped: OSC 2 restarts at the same point */
-            uint32_t f = ph0 / ((inc1 >> 16) | 1u);   /* the part of a sample since, 0..65535 */
-            uint32_t at = ph1 - f * (inc2 >> 16);     /* OSC 2 at the wrap */
-            jl = (int32_t)(at >> 16) + 1;
-            ph1 = f * (inc2 >> 16);
+        // JSM reset / wrap from OSC2
+        if (!sub && ph0 < inc1) {                            /* OSC 1 wrapped */
+            if (wave == 7 || wave == 8) {
+                dir2 = 1 - dir2; // Soft sync : inversion de direction pour le Sine et l'Orgue
+                jl = 0;
+            } else {
+                // Hard sync classique pour la Saw (wave == 6)
+                uint32_t f = ph0 / ((inc1 >> 16) | 1u);       /* the part of a sample since, 0..65535 */
+                uint32_t at = ph1 - f * (inc2 >> 16);         /* OSC 2 at the wrap */
+                jl = (int32_t)(at >> 16) + 1;
+                ph1 = f * (inc2 >> 16);
+            }
         }
+
+        // OSC2 move foward or backwards
+        if (wave == 7 || wave == 8) {
+            ph1 += (dir2 == 1) ? inc2 : -(int32_t)inc2;
+        } else {
+            ph1 += inc2; // Avancée normale en hard sync
+        }
+
         s = mulq15(a, m1) + mulq15(b, m2);
         if (nz)
             s += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
@@ -109,6 +130,7 @@ static __attribute__((noinline)) void analog_render_x(track_t *t, voice_t *v, in
     v->s[1] = ic2;
     v->s[2] = nst;
     v->s[3] = jl;
+    v->s[4] = dir2;
 }
 
 /* WAVE 0..4: the loop as it always was */
