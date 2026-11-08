@@ -11,14 +11,14 @@
  *         every pair (OSC 2 alone at 127)
  *   SUB   OSC 1 a saw, OSC 2 a square an octave below it (detuned by DTN in cents as before): MIX (shown SUB) is the
  *         sub oscillator's level */
-static const char *const N_ANALOG_WAVE[] = {"SAW", "SQR", "TRI", "SIN", "PWM", "SYNC", "SUB"};
-enum { AW_SYNC = 5, AW_SUB = 6 };
+static const char *const N_ANALOG_WAVE[] = {"SAW", "SQR", "TRI", "SIN", "PWM", "SYNC", "SUB", "SQ+S"}; //JSM
+enum { AW_SYNC = 5, AW_SUB = 6};
 static const param_desc_t ANALOG_SYNC = {"SYNC", 0, 0, 127, 10, F_INT, 0};   /* DTN's range and default */
 static const param_desc_t ANALOG_SUB = {"SUB", 0, 0, 127, 64, F_PCT, 0};      /* MIX's */
 
 static const param_desc_t *analog_desc(const track_t *t, uint32_t k)
 {
-    if (k == 1u && t->p[P_E0] == AW_SYNC)
+    if (k == 1u && (t->p[P_E0] == AW_SYNC || t->p[P_E0] == 7 )) // JSM 7 = SQ+S sync
         return &ANALOG_SYNC;
     if (k == 2u && t->p[P_E0] == AW_SUB)
         return &ANALOG_SUB;
@@ -42,6 +42,7 @@ static __attribute__((noinline)) void analog_render_x(track_t *t, voice_t *v, in
 {
     const int16_t *p = t->p;
     uint32_t sub = p[P_E0] == AW_SUB, i;
+    uint32_t wave = (uint32_t)p[P_E0]; // JSM determine the selected wave
     int32_t det = p[P_E1], mix = p[P_E2], noise = p[P_E3];
     int32_t cut = (p[P_E4] << 8) + m->cutoff + (p[P_E7] * (v->pitch16 - 60 * 16) >> 4);
     tsvf_t flt;
@@ -60,16 +61,29 @@ static __attribute__((noinline)) void analog_render_x(track_t *t, voice_t *v, in
     }
     tsvf_coef(&flt, cut, p[P_E5]);
     for (i = 0; i < n; i++) {
-        int32_t a = osc_saw(ph0, inc1), b, s;
+        int32_t a, b, s;
+        // JSM special waves
+        if (wave == 7) { // Sine + Square
+            a = osc_pulse(ph0, inc1, 0x80000000u);
+        } else {
+            a = osc_saw(ph0, inc1);
+        }
         if (sub) {
             b = osc_pulse(ph1, inc2, 0x80000000u);
         } else {
             int32_t bl = blep(ph1, inc2);
             if (jl) {                                 /* just restarted: the step was jl - 1, not a whole cycle */
                 bl = (bl * ((jl - 1) >> 1)) >> 15;
-                jl = 0;
+                jl = 0; 
             }
-            b = (int32_t)(ph1 >> 16) - 32768 - bl;
+            if (wave == 7) { // Sine + Square
+                b = osc_sine(ph1); // sine
+                if (ph0 > 0xFFFFFFFFu - inc1) // sync
+                    b -= (blep(ph0, inc1) * osc_sine(ph1)) >> 15;
+            } else {
+                b = (int32_t)(ph1 >> 16) - 32768 - bl; // Saw
+            }
+            
             if (ph0 > 0xFFFFFFFFu - inc1)             /* OSC 1 restarts it before the next sample: round that step */
                 b -= (blep(ph0, inc1) * (int32_t)(ph1 >> 17)) >> 15;
         }
@@ -208,7 +222,7 @@ static const engine_t ENG_ANALOG = {
     .name = "ANALOG",
     .page_title = {"OSC", "FLT"},
     .edit = {
-        {"WAVE", N_ANALOG_WAVE, 0, 6, 0, F_ENUM, 0},   /* ((1.3) SYNC SUB appended) */
+        {"WAVE", N_ANALOG_WAVE, 0, NELEM(N_ANALOG_WAVE)-1, 0, F_ENUM, 0},   /* JSM count the waves rather than fixed 6 */
         {"DETUNE", 0, 0, 127, 10, F_INT, U_CT},
         {"MIX", 0, 0, 127, 64, F_PCT, 0},
         {"NOISE", 0, 0, 127, 0, F_PCT, 0},
