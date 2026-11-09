@@ -198,12 +198,21 @@ static inline __attribute__((always_inline)) void phase_loop(track_t *t, voice_t
     inc2 += (uint32_t)((int32_t)(inc2 >> 12) * (rem * 2367 / 16000));
     pd_bends(b, t, v, m);
     for (i = 0; i < n; i++) {
+#ifndef JSM_BACK_TO_NORMAL   
+        int32_t s;
+        // JSM Phase fix: With two different shapes in mix (say Pulse+Square), I get clicks with the old code with long releases
+        int32_t s1 = pd_wave(&b[0], ph0 >> 16, i);
+        int32_t s2 = pd_wave(&b[1], ph0 >> 16, i);
+        s = (s1 + s2) >> 1; // mix 50/50 2 waves on the same sample
+        ph0 += inc;
+#else     
         uint32_t old = ph0;
         int32_t s;
         s = pd_wave(tg0 ? &b[1] : &b[0], ph0 >> 16, i);
         ph0 += inc;
         if (ph0 < old)
             tg0 ^= 1;
+#endif
         if (line2) {
             uint32_t old2 = ph1;
             int32_t s2 = pd_wave(tg1 ? &b[1] : &b[0], ph1 >> 16, i);
