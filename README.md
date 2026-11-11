@@ -24,9 +24,48 @@ Set Large in the settings, stay with SKIFF theme and enjoy the new look.
 - Track filter LP/HP DJ filter, under EDIT, last page
 - GLO layer > STEMS (A): separate channels in pairs (1+2, 3+4, 5+6) and hard-pan them for easier stem exportas USB audio out is only stereo. Stereo effects are disabled. Doesn't work with stereo drums.
 - ANALOG: new shape Square + Sine and Saw + Organ, both with soft sync
+- PHASE: fixed random clicks
 
 ### Development
 All changes use the JSM keyword and an unset flag JSM_BACK_TO_NORMAL reverts to the defaults of Skiff. 
+
+List of changes from the upstream thanks to:
+```
+git diff --name-only -G"JSM" upstream/main
+
+README.md
+firmware/src/core.h
+firmware/src/eng_analog.c
+firmware/src/eng_phase.c
+firmware/src/fx.c
+firmware/src/mod.c
+firmware/src/params.c
+firmware/src/project.c (just copied the part that makes projects saving compatible with newer chips)
+firmware/src/seq.c
+firmware/src/song_dice.c
+firmware/src/ui.c
+firmware/src/ui_draw.c
+firmware/src/ui_events.c
+firmware/src/ui_graph.c
+firmware/src/ui_home.c
+firmware/src/ui_input.c
+firmware/src/ui_layer.c
+firmware/src/ui_tools.c
+firmware/src/voice.c
+tests/ui_render.c
+tools/build.py
+tools/gen_aa_font.py
+tools/gen_samples.py
+tools/gen_ui_palettes.py
+```
+
+Or get the modifications since I forked:
+```git diff -G"JSM" v2.0.3 HEAD -- firmware/src/ > modifications.patch```
+
+# Credits
+[SKIFF](https://github.com/illuminus5/skiff/) - Almost everything here is identical
+[FELUCCA](https://github.com/hugelton/Felucca) - The base firmware
+[JIANT](https://github.com/juanjiant-bit/JIANT) - (random song (song_dice.c))
 
 # Original documentation
 <p align="center">

@@ -53,7 +53,7 @@ HUFF = [("M", "L", "V")]
 L_CHARS = " #+-./&0123456789ABCDEFGHIJKLMNOPQRSTUVWXY"
 # V (Skiff): STYLE BLOCKS' knob card values (ui_blocks.c), between M and L so three figures and a unit fit a card;
 # sparse as L, with ! : Z for the trig conditions ("!FILL", "1:2"); another character sets the value in M
-V_CHARS = " !#+-./&0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+V_CHARS = " !#+-./&0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ" # JSM
 
 
 def preset(name):
@@ -63,6 +63,12 @@ def preset(name):
                 ("M", v + "@500", 15, (32, 126), EXTRAS, 0.0, PHASES),
                 ("L", v + "@600", 28, (32, 32), [ord(c) for c in L_CHARS[1:]], 0.0, PHASES_L),
                 ("V", v + "@600", 24, (32, 32), [ord(c) for c in V_CHARS[1:]], 0.0, PHASES_L)]
+    if name == "rubik":
+        v = str(FONTS.parent / "assets" / "fonts" / "Rubik-VariableFont_wght.ttf")   # SIL OFL 1.1, Google Fonts
+        return [("S", v + "@400", 12, (32, 126), EXTRAS, 0.0, PHASES),
+                ("M", v + "@500", 15, (32, 126), EXTRAS, 0.0, PHASES),
+                ("L", v + "@600", 28, (32, 32), [ord(c) for c in L_CHARS[1:]], 0.0, PHASES_L),
+                ("V", v + "@600", 24, (32, 32), [ord(c) for c in V_CHARS[1:]], 0.0, PHASES_L)]                
     if name == "barlow-condensed":            # Skiff's BLOCKS look (DESIGN.md): condensed, bold numerals
         md = str(FONTS.parent / "assets" / "fonts" / "BarlowCondensed-Medium.ttf")    # SIL OFL 1.1, Google Fonts
         bd = str(FONTS.parent / "assets" / "fonts" / "BarlowCondensed-Bold.ttf")
@@ -246,7 +252,7 @@ def emit(face, tracking, gamma, kern_min):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("out")
-    ap.add_argument("--preset", choices=["standin", "inter-tight", "barlow-condensed"])
+    ap.add_argument("--preset", choices=["standin", "inter-tight", "barlow-condensed", "rubik"]) #JSM
     ap.add_argument("--face", action="append", default=[])
     ap.add_argument("--tracking", type=float, default=0.0, help="extra advance per glyph in em")
     ap.add_argument("--gamma", type=float, default=1.0, help="coverage curve; <1 thickens light-on-dark text")
