@@ -14,6 +14,22 @@ static const char *const N_PD_WAVE[] = {"SAW", "SQR", "PLS", "DSIN", "SPLS", "RS
 static const char *const N_PD_WAVE2[] = {"-", "SAW", "SQR", "PLS", "DSIN", "SPLS", "RSAW", "RTRI", "RTRP"};
 static const char *const N_PD_LINE[] = {"MIX", "RING"};
 
+#ifndef JSM_BACK_TO_NORMAL
+// Attenuation table Q15 for N voices
+// Roughly  1 / sqrt(N) on Q15 (32768 = 1.0)
+static const uint16_t poly_scale[9] = {
+    32768, // 0 voices (security)
+    32768, // 1 voices  (1.0)
+    23170, // 2 voices  (~0.707)
+    18919, // 3 voices  (~0.577)
+    16384, // 4 voices  (0.5)
+    14660, // 5 voices  (~0.447)
+    13363, // 6 voices  (~0.408)
+    12380, // 7 voices  (~0.378)
+    11585  // 8 voices  (~0.354)
+};
+#endif
+
 static inline int32_t pd_cos(uint32_t ph16)             /* -cos, Q15, from the 16-bit PD phase */
 {
     return -sine_i(((ph16 & 0xFFFFu) << 16) + 0x40000000u);
@@ -235,7 +251,19 @@ static inline __attribute__((always_inline)) void phase_loop(track_t *t, voice_t
         if (fg)     /* (the blocker's step of a full-scale swing, +-65534, and SUB's 25400 on it: s x amp would wrap
                      * 32 bits past 65538; FOLD 0 stays within 58167) */
             s = clamp(s, -65535, 65535);
+#ifndef JSM_BACK_TO_NORMAL
+        // JSM: new notes lower the previous ones by sqrt(Num of notes)
+        uint16_t active_voices = 0;
+        uint16_t tr;
+        for (tr = 0; tr < NVOICE/*ENGINES[t->engine]->poly*/; tr++) {
+            active_voices += t->v[tr].active ? 1 : 0;
+        }
+
+        int32_t scale = poly_scale[clamp(active_voices, 1, 8)];
+        out[i] += mulq15(voice_amp(s, m, i) << 1 , scale);
+#else
         out[i] += voice_amp(s, m, i) << 1;
+#endif
     }
     v->ph[0] = ph0;
     v->ph[1] = ph1;

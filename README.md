@@ -24,7 +24,7 @@ Set Large in the settings, stay with SKIFF theme and enjoy the new look.
 - Track filter LP/HP DJ filter, under EDIT, last page
 - GLO layer > STEMS (A): separate channels in pairs (1+2, 3+4, 5+6) and hard-pan them for easier stem exportas USB audio out is only stereo. Stereo effects are disabled. Doesn't work with stereo drums.
 - ANALOG: new shape Square + Sine and Saw + Organ, both with soft sync
-- PHASE: fixed random clicks
+- PHASE: fixed random clicks (unsure), and made polyphonic notes more quiet
 
 ### Development
 All changes use the JSM keyword and an unset flag JSM_BACK_TO_NORMAL reverts to the defaults of Skiff. 
