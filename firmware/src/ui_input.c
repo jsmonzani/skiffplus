@@ -1868,10 +1868,10 @@ static void presets_turn(int32_t s)
         fmt_int(b, kb_vel);
         ui_say("VEL ", b);        
     } else 
-#else
+#endif
     if (ui.home || g == GR_BROWSE) {
         preset_step(s);
-#endif
+
     } else if (step_page(g) || g == GR_FEEL) {
         if (roll_on() && ui.entry_open) {
             entry_len(s);
