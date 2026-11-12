@@ -1867,8 +1867,7 @@ static void presets_turn(int32_t s)
         char b[8];
         fmt_int(b, kb_vel);
         ui_say("VEL ", b);        
-    } else if (g == GR_BROWSE) {
-        preset_step(s);
+    } else 
 #else
     if (ui.home || g == GR_BROWSE) {
         preset_step(s);
